@@ -1,101 +1,78 @@
 ---
+import Layout from "../layouts/Layout.astro";
 ---
-<!DOCTYPE html>
-<html lang="es">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Recuperación de contraseña</title>
-    <style>
-      body { font-family: system-ui, -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 2rem; }
-      .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; }
-      .row { display: flex; flex-direction: column; gap: .5rem; margin-top: .5rem; }
-      input { padding: .5rem; border: 1px solid #ccc; border-radius: 6px; }
-      button { margin-top: .75rem; background: #0070f3; color: white; border: none; padding: .5rem 1rem; border-radius: 6px; cursor: pointer; }
-      button:hover { background: #0051cc; }
-      .msg { margin-top: .75rem; font-size: .95rem; }
-      .error { color: #b00020; }
-      .success { color: #067d37; }
-    </style>
-  </head>
-  <body>
-    <h1>Restablecer contraseña</h1>
-    <div class="card">
-      <p id="status">Verificando enlace de recuperación…</p>
-      <form id="recover-form" class="row" style="display:none">
-        <label>Nueva contraseña</label>
-        <input id="pwd" type="password" autocomplete="new-password" required />
-        <label>Confirmar contraseña</label>
-        <input id="pwd2" type="password" autocomplete="new-password" required />
-        <button type="submit">Actualizar contraseña</button>
-        <div id="msg" class="msg"></div>
-      </form>
-    </div>
+<Layout title="Recuperar contraseña">
+  <main class="max-w-md mx-auto p-6">
+    <h1 class="text-2xl font-semibold mb-4">Recuperar contraseña</h1>
+    <p id="status" class="mb-4 text-sm text-gray-600">Validando enlace...</p>
 
-    <script type="module">
-      import { getSupabase } from "../lib/supabaseClient";
-      import { ValidationRules } from "../lib/validation";
+    <form id="recover-form" class="space-y-3 hidden">
+      <div>
+        <label class="block text-sm mb-1">Nueva contraseña</label>
+        <input id="password" type="password" class="w-full px-3 py-2 border rounded" placeholder="••••••••" required />
+      </div>
+      <div>
+        <label class="block text-sm mb-1">Confirmar contraseña</label>
+        <input id="confirm" type="password" class="w-full px-3 py-2 border rounded" placeholder="••••••••" required />
+      </div>
+      <button type="submit" class="bg-black text-white px-4 py-2 rounded">Actualizar contraseña</button>
+    </form>
 
-      const supabase = getSupabase(true);
-      const status = document.getElementById('status');
-      const form = document.getElementById('recover-form');
-      const pwd = document.getElementById('pwd');
-      const pwd2 = document.getElementById('pwd2');
-      const msg = document.getElementById('msg');
+    <div id="success" class="hidden mt-4 text-green-600">Contraseña actualizada correctamente. Redirigiendo al login...</div>
+    <div id="error" class="hidden mt-4 text-red-600"></div>
+  </main>
 
-      function setMsg(text, kind = '') {
-        msg.textContent = text;
-        msg.className = `msg ${kind}`;
+  <script>
+    import { getSupabase } from "../lib/supabaseClient";
+    const supabase = getSupabase();
+
+    const statusEl = document.getElementById('status');
+    const formEl = document.getElementById('recover-form');
+    const errorEl = document.getElementById('error');
+    const successEl = document.getElementById('success');
+
+    (async () => {
+      try {
+        // Con detectSessionInUrl=true, Supabase procesa el hash y crea sesión
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) throw error;
+        if (!session) {
+          statusEl.textContent = 'Enlace inválido o caducado. Solicita un nuevo email.';
+          return;
+        }
+        statusEl.textContent = 'Enlace verificado. Ingresa tu nueva contraseña.';
+        formEl.classList.remove('hidden');
+      } catch (e) {
+        statusEl.textContent = 'No fue posible validar el enlace.';
+        errorEl.textContent = (e && e.message) ? e.message : 'Error desconocido';
+        errorEl.classList.remove('hidden');
       }
+    })();
 
-      // Detectar si el enlace es de tipo recovery
-      const params = new URLSearchParams(window.location.hash.replace(/^#/, ''));
-      const type = params.get('type');
-
-      (async () => {
-        try {
-          if (type !== 'recovery') {
-            status.textContent = 'Enlace inválido o ya utilizado.';
-            return;
-          }
-
-          // Supabase con detectSessionInUrl=true debe crear una sesión temporal
-          const { data: { session }, error } = await supabase.auth.getSession();
-          if (error) {
-            status.textContent = 'No se pudo verificar la sesión: ' + (error.message || '');
-            return;
-          }
-
-          if (!session) {
-            status.textContent = 'Sesión de recuperación no encontrada o expirada. Solicita un nuevo email.';
-            return;
-          }
-
-          status.textContent = 'Introduce tu nueva contraseña.';
-          form.style.display = '';
-        } catch (e) {
-          status.textContent = 'Error al preparar la recuperación.';
-        }
-      })();
-
-      form?.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        setMsg('Actualizando contraseña…');
-        const p1 = pwd.value || '';
-        const p2 = pwd2.value || '';
-        if (p1 !== p2) { setMsg('Las contraseñas no coinciden', 'error'); return; }
-        const validation = ValidationRules.password(p1);
-        if (!validation.valid) { setMsg(validation.errors[0] || 'Contraseña inválida', 'error'); return; }
-
-        try {
-          const { data, error } = await supabase.auth.updateUser({ password: p1 });
-          if (error) throw error;
-          setMsg('Contraseña actualizada correctamente. Redirigiendo…', 'success');
-          setTimeout(() => { window.location.href = '/login'; }, 1200);
-        } catch (err) {
-          setMsg((err && err.message) ? err.message : 'No se pudo actualizar la contraseña', 'error');
-        }
-      });
-    </script>
-  </body>
-</html>
+    formEl?.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      errorEl.classList.add('hidden');
+      const pass = (document.getElementById('password') as HTMLInputElement).value;
+      const confirm = (document.getElementById('confirm') as HTMLInputElement).value;
+      if (!pass || pass.length < 8) {
+        errorEl.textContent = 'La contraseña debe tener al menos 8 caracteres';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      if (pass !== confirm) {
+        errorEl.textContent = 'Las contraseñas no coinciden';
+        errorEl.classList.remove('hidden');
+        return;
+      }
+      try {
+        const { error } = await supabase.auth.updateUser({ password: pass });
+        if (error) throw error;
+        successEl.classList.remove('hidden');
+        setTimeout(() => { window.location.href = '/login'; }, 1500);
+      } catch (e) {
+        errorEl.textContent = (e && e.message) ? e.message : 'No se pudo actualizar la contraseña';
+        errorEl.classList.remove('hidden');
+      }
+    });
+  </script>
+</Layout>
