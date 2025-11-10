@@ -1,0 +1,268 @@
+---
+import { supabase } from '../lib/supabase';
+
+interface TableResult {
+  table: string;
+  exists: boolean;
+  error?: string | null;
+  count?: number | null;
+}
+
+interface ConnectionResult {
+  success: boolean;
+  message: string;
+  data?: any;
+}
+
+interface TestResults {
+  connection: ConnectionResult | null;
+  tables: TableResult[] | null;
+  error: string | null;
+  supabaseConfig: {
+    url: string | undefined;
+    hasKey: boolean;
+  };
+}
+
+// Helper para extraer mensaje de error de forma segura
+function getErrorMessage(err: unknown): string | null {
+  if (!err) return null;
+  if (err instanceof Error) return err.message;
+  if (typeof err === 'string') return err;
+  if (typeof err === 'object' && err !== null) {
+    const maybe = (err as any).message;
+    if (typeof maybe === 'string') return maybe;
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return String(err);
+    }
+  }
+  return String(err);
+}
+
+let results: TestResults = {
+  connection: null,
+  tables: null,
+  error: null,
+  supabaseConfig: {
+    url: import.meta.env.PUBLIC_SUPABASE_URL,
+    hasKey: !!import.meta.env.PUBLIC_SUPABASE_ANON_KEY
+  }
+};
+
+try {
+  if (Astro.request.method === 'POST') {
+    console.log('Iniciando pruebas de Supabase...');
+    console.log('Configuración:', results.supabaseConfig);
+    console.log('Cliente Supabase:', supabase);
+
+    // Probar conexión básica usando count exacto (más robusto que pedir un campo 'count')
+    console.log('Probando conexión básica...');
+    let connectionData = null;
+    let connectionError: unknown = null;
+
+    try {
+      // usamos select('*', { count: 'exact' }) y limit(1) para obtener count y verificar la conexión
+      const response = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact' })
+        .limit(1);
+
+      connectionData = response.data;
+      connectionError = response.error;
+
+      console.log('Resultado de conexión:', { data: connectionData, error: connectionError, count: response.count });
+    } catch (connError) {
+      console.error('Error al intentar conectar:', connError);
+      connectionError = connError;
+    }
+
+    const connectionMessage = getErrorMessage(connectionError) ?? 'Conexión exitosa';
+
+    results.connection = {
+      success: !connectionError,
+      message: connectionError ? `Error de conexión: ${connectionMessage}` : 'Conexión exitosa',
+      data: connectionData
+    };
+
+    if (!connectionError) {
+      // Verificar tablas existentes
+      console.log('Verificando tablas existentes...');
+      const tables = ['profiles', 'workspaces', 'workspace_members', 'clients', 'projects', 'time_entries'];
+
+      const tableResults = await Promise.all(
+        tables.map(async (tableName: string) => {
+          console.log(`Verificando tabla ${tableName}...`);
+
+          try {
+            const res = await supabase
+              .from(tableName)
+              .select('*', { count: 'exact' })
+              .limit(1);
+
+            // res.count contiene el conteo exacto si la consulta lo permitió
+            const exists = !res.error;
+            const errMsg = getErrorMessage(res.error) ?? null;
+            const cnt = typeof res.count === 'number' ? res.count : (res.data?.length ?? null);
+
+            console.log(`Resultado para ${tableName}:`, { data: res.data, error: res.error, count: res.count });
+
+            const tr: TableResult = {
+              table: tableName,
+              exists,
+              error: errMsg,
+              count: cnt
+            };
+            return tr;
+          } catch (err) {
+            console.error(`Error verificando ${tableName}:`, err);
+            return {
+              table: tableName,
+              exists: false,
+              error: getErrorMessage(err) ?? 'Error desconocido',
+              count: null
+            } as TableResult;
+          }
+        })
+      );
+
+      results.tables = tableResults;
+    }
+  }
+} catch (e: unknown) {
+  console.error('Error completo:', e);
+  if (e instanceof Error) {
+    results.error = e.message;
+  } else {
+    try {
+      results.error = typeof e === 'string' ? e : JSON.stringify(e);
+    } catch {
+      results.error = 'Error desconocido';
+    }
+  }
+}
+
+// Mostrar resultados en el servidor para depuración
+console.log('Resultados finales:', JSON.stringify(results, null, 2));
+---
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pruebas de Supabase</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 2rem;
+      line-height: 1.5;
+    }
+    .card {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    .success { color: green; }
+    .error { color: red; }
+    button {
+      background: #0070f3;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+    button:hover {
+      background: #0051cc;
+    }
+    pre {
+      background: #f6f8fa;
+      padding: 1rem;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.5rem;
+      border-bottom: 1px solid #ddd;
+    }
+    th {
+      background: #f6f8fa;
+    }
+  </style>
+</head>
+<body>
+  <h1>Pruebas de Supabase</h1>
+
+  <form method="POST">
+    <button type="submit">Verificar Conexión y Tablas</button>
+  </form>
+
+  <div class="card">
+    <h3>Configuración de Supabase</h3>
+    <p>URL: {results.supabaseConfig.url}</p>
+    <p>Clave anónima configurada: {results.supabaseConfig.hasKey ? 'Sí' : 'No'}</p>
+  </div>
+
+  {results.error && (
+    <div class="card error">
+      <h3>Error General</h3>
+      <p>{results.error}</p>
+    </div>
+  )}
+
+  {results.connection && (
+    <div class="card">
+      <h3>Estado de la Conexión</h3>
+      <p class={results.connection.success ? 'success' : 'error'}>
+        {results.connection.message}
+      </p>
+      {results.connection.data && (
+        <pre>{JSON.stringify(results.connection.data, null, 2)}</pre>
+      )}
+    </div>
+  )}
+
+  {results.tables && (
+    <div class="card">
+      <h3>Estado de las Tablas</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Tabla</th>
+            <th>Estado</th>
+            <th>Registros</th>
+          </tr>
+        </thead>
+        <tbody>
+          {results.tables.map((table) => (
+            <tr>
+              <td>{table.table}</td>
+              <td class={table.exists ? 'success' : 'error'}>
+                {table.exists ? '✓ Existe' : `✗ Error: ${table.error}`}
+              </td>
+              <td>{table.exists ? table.count : '-'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+
+  <div class="card">
+    <h3>Método de la Solicitud</h3>
+    <p>{Astro.request.method}</p>
+  </div>
+</body>
+</html>

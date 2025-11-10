@@ -1,0 +1,711 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+<Layout>
+  <main class="min-h-screen bg-gradient-to-br from-green-900 to-green-700 text-white">
+    <header class="flex items-center justify-between max-w-6xl mx-auto p-6">
+      <h1 class="text-2xl font-semibold">Contador de Cartas - Blackjack</h1>
+      <div class="flex items-center gap-2">
+        <a href="/dashboard" class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-md px-3 py-2">Dashboard</a>
+        <button onclick="window.close()" class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-md px-3 py-2">Cerrar</button>
+      </div>
+    </header>
+
+    <div class="container mx-auto px-6">
+      <p class="text-center text-green-200 mb-8">Sistema High-Low</p>
+      
+      <!-- Voice Control Button -->
+      <button id="voiceControlBtn" onclick="voiceCommands.toggleListening()" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 mb-4">
+        <span id="voiceIcon">🎤</span>
+        Activar Control por Voz
+      </button>
+      
+      <!-- Voice Help Button -->
+      <button onclick="document.getElementById('voiceHelpModal').classList.remove('hidden'); document.getElementById('voiceHelpModal').classList.add('flex');" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors mb-4">
+        ❓ Ayuda
+      </button>
+      
+      <div class="grid gap-6 max-w-4xl mx-auto">
+        <!-- Selector de mazos -->
+        <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-6">
+          <label class="block text-white font-semibold mb-4">Número de Mazos:</label>
+          <div class="flex gap-3 flex-wrap">
+            <button class="deck-btn px-6 py-3 rounded-lg font-bold transition-all" onclick="setDeckCount(1, this)">1</button>
+            <button class="deck-btn px-6 py-3 rounded-lg font-bold transition-all" onclick="setDeckCount(2, this)">2</button>
+            <button class="deck-btn px-6 py-3 rounded-lg font-bold transition-all" onclick="setDeckCount(4, this)">4</button>
+            <button class="deck-btn px-6 py-3 rounded-lg font-bold transition-all bg-green-600 text-white transform scale-105" onclick="setDeckCount(6, this)">6</button>
+            <button class="deck-btn px-6 py-3 rounded-lg font-bold transition-all" onclick="setDeckCount(8, this)">8</button>
+          </div>
+        </div>
+
+        <!-- Contadores -->
+        <div class="grid md:grid-cols-2 gap-6">
+          <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-6 text-center">
+            <div class="text-sm text-white/70 mb-2">CONTEO ACTUAL</div>
+            <div class="text-6xl font-bold mb-2" id="runningCount">0</div>
+          </div>
+          <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-6 text-center">
+            <div class="text-sm text-white/70 mb-2">CONTEO VERDADERO</div>
+            <div class="text-5xl font-bold text-blue-400 mb-2" id="trueCount">0.00</div>
+            <div class="text-xs text-white/50">Conteo / Mazos restantes</div>
+          </div>
+        </div>
+
+        <!-- Estadísticas -->
+        <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-6">
+          <div class="grid grid-cols-3 gap-4 text-center mb-4">
+            <div>
+              <div class="text-sm text-white/70">Cartas jugadas</div>
+              <div class="text-xl font-bold" id="cardsPlayed">0</div>
+            </div>
+            <div>
+              <div class="text-sm text-white/70">Cartas restantes</div>
+              <div class="text-xl font-bold" id="cardsRemaining">312</div>
+            </div>
+            <div>
+              <div class="text-sm text-white/70">Total</div>
+              <div class="text-xl font-bold" id="totalCards">312</div>
+            </div>
+          </div>
+          <div class="bg-white/10 rounded-full h-3 overflow-hidden">
+            <div id="progressBar" class="bg-gradient-to-r from-green-500 to-green-600 h-full transition-all duration-300" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- Cartas -->
+        <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-6">
+          <h3 class="text-lg font-semibold mb-4">Selecciona la carta que salió:</h3>
+          
+          <div class="space-y-4">
+            <!-- Cartas Bajas -->
+            <div>
+              <div class="text-sm text-green-400 font-semibold mb-2">CARTAS BAJAS (+1 - Favorables para el jugador)</div>
+              <button id="card-low" class="card-btn w-full p-6 rounded-lg font-bold text-xl transition-all" style="background: #dcfce7; color: #059669;" onclick="updateCount(1)">
+                <div class="text-3xl mb-2">2, 3, 4, 5, 6</div>
+                <div class="text-2xl mb-2">+1</div>
+                <div id="lowCardsRemaining" class="text-sm opacity-70">120 restantes</div>
+              </button>
+            </div>
+
+            <!-- Cartas Neutrales -->
+            <div>
+              <div class="text-sm text-white/70 font-semibold mb-2">CARTAS NEUTRALES (0)</div>
+              <button id="card-neutral" class="card-btn w-full p-6 rounded-lg font-bold text-xl transition-all" style="background: #f3f4f6; color: #6b7280;" onclick="updateCount(0)">
+                <div class="text-3xl mb-2">7, 8, 9</div>
+                <div class="text-2xl mb-2">0</div>
+                <div id="neutralCardsRemaining" class="text-sm opacity-70">72 restantes</div>
+              </button>
+            </div>
+
+            <!-- Cartas Altas -->
+            <div>
+              <div class="text-sm text-red-400 font-semibold mb-2">CARTAS ALTAS (-1 - Favorables para el casino)</div>
+              <button id="card-high" class="card-btn w-full p-6 rounded-lg font-bold text-xl transition-all" style="background: #fee2e2; color: #dc2626;" onclick="updateCount(-1)">
+                <div class="text-3xl mb-2">10, J, Q, K, A</div>
+                <div class="text-2xl mb-2">-1</div>
+                <div id="highCardsRemaining" class="text-sm opacity-70">120 restantes</div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Botón Reiniciar -->
+        <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-6">
+          <button id="resetCount" onclick="resetCount()" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-lg transition-all">
+            Reiniciar Conteo
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Voice Commands Help Modal -->
+    <div id="voiceHelpModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+      <div class="bg-gray-800 rounded-lg p-6 max-w-md mx-4 border border-gray-600">
+        <div class="flex justify-between items-center mb-4">
+          <h3 class="text-xl font-bold text-white">🎤 Comandos de Voz</h3>
+          <button onclick="document.getElementById('voiceHelpModal').classList.add('hidden'); document.getElementById('voiceHelpModal').classList.remove('flex');" class="text-gray-400 hover:text-white text-2xl">×</button>
+        </div>
+        
+        <div class="space-y-4 text-gray-300">
+          <div>
+            <h4 class="font-semibold text-green-400 mb-2">Cartas Bajas (+1)</h4>
+            <p class="text-sm">Diga: <span class="bg-gray-700 px-2 py-1 rounded">2</span> <span class="bg-gray-700 px-2 py-1 rounded">3</span> <span class="bg-gray-700 px-2 py-1 rounded">4</span> <span class="bg-gray-700 px-2 py-1 rounded">5</span> <span class="bg-gray-700 px-2 py-1 rounded">6</span></p>
+          </div>
+          
+          <div>
+            <h4 class="font-semibold text-yellow-400 mb-2">Cartas Neutras (0)</h4>
+            <p class="text-sm">Diga: <span class="bg-gray-700 px-2 py-1 rounded">7</span> <span class="bg-gray-700 px-2 py-1 rounded">8</span> <span class="bg-gray-700 px-2 py-1 rounded">9</span></p>
+          </div>
+          
+          <div>
+            <h4 class="font-semibold text-red-400 mb-2">Cartas Altas (-1)</h4>
+            <p class="text-sm">Diga: <span class="bg-gray-700 px-2 py-1 rounded">10</span> <span class="bg-gray-700 px-2 py-1 rounded">J</span> <span class="bg-gray-700 px-2 py-1 rounded">Q</span> <span class="bg-gray-700 px-2 py-1 rounded">K</span> <span class="bg-gray-700 px-2 py-1 rounded">A</span></p>
+          </div>
+          
+          <div>
+            <h4 class="font-semibold text-blue-400 mb-2">Control</h4>
+            <p class="text-sm">Diga: <span class="bg-gray-700 px-2 py-1 rounded">reiniciar</span> o <span class="bg-gray-700 px-2 py-1 rounded">reset</span></p>
+          </div>
+          
+          <div class="bg-yellow-900 border border-yellow-600 rounded p-3 mt-4">
+            <p class="text-yellow-200 text-sm">
+              <strong>💡 Consejo:</strong> Hable claramente y espere un segundo entre comandos. El sistema tiene un pequeño retardo para evitar errores.
+            </p>
+          </div>
+        </div>
+        
+        <div class="mt-6 text-center">
+          <button onclick="document.getElementById('voiceHelpModal').classList.add('hidden'); document.getElementById('voiceHelpModal').classList.remove('flex');" class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded transition-colors">
+            Entendido
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</Layout>
+
+<!-- Voice Configuration -->
+<script id="voice-config" type="application/json">
+{
+  "shortTokens": {
+    "numbers": ["1","2","3","4","5","6","7","8","9","10"],
+    "letters": ["j","q","k","a"]
+  },
+  "thresholds": {
+    "number": 0.2,
+    "letter": 0.2
+  },
+  "cooldownMs": 100
+}
+</script>
+
+<style>
+  .deck-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  .deck-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+  
+  .deck-btn.active {
+    background: #059669;
+    color: white;
+    transform: scale(1.05);
+  }
+  
+  .card-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.2);
+  }
+  
+  .card-btn:hover {
+    transform: scale(1.05);
+    background: rgba(255, 255, 255, 0.2);
+  }
+  
+  .card-btn:active {
+    transform: scale(0.95);
+  }
+  
+  .card-btn:disabled,
+  .card-btn.disabled {
+    background: rgba(255, 255, 255, 0.05) !important;
+    color: rgba(255, 255, 255, 0.3) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    cursor: not-allowed !important;
+    opacity: 0.5;
+  }
+</style>
+
+<script>
+  // @ts-nocheck
+  // VoiceCommands Class Integration
+  class VoiceCommands {
+    constructor() {
+      (this as any).isListening = false;
+      (this as any).isStarting = false;
+      (this as any).shouldReconnect = false;
+      (this as any).recognition = null;
+      (this as any).actionCooldownMs = 100;
+      (this as any).lastActionTime = 0;
+      (this as any).lastError = null;
+      (this as any).retryCount = 0;
+      (this as any).maxRetries = 1;
+      (this as any).fastMode = true;
+      (this as any).interimThresholds = { number: 0.6, letter: 0.6 };
+      (this as any).lastProcessedToken = null;
+      (this as any).lastProcessedTime = 0;
+      (this as any).domElements = this.cacheDOMElements();
+
+      // Initialize voice recognition
+      (this as any).initializeRecognition();
+      
+      // Read configuration from DOM
+      (this as any).readConfigFromDom();
+    }
+
+    cacheDOMElements() {
+      return {
+        lowCardBtn: document.getElementById('card-low'),
+        neutralCardBtn: document.getElementById('card-neutral'),
+        highCardBtn: document.getElementById('card-high'),
+        resetBtn: document.getElementById('resetCount'),
+        voiceBtn: document.getElementById('voiceControlBtn'),
+        voiceIcon: document.getElementById('voiceIcon')
+      };
+    }
+
+    readConfigFromDom() {
+      try {
+        const configElement = document.getElementById('voice-config');
+        if (!configElement) {
+          console.warn('No se encontró el elemento de configuración de voz');
+          return;
+        }
+
+        const config = JSON.parse(configElement.textContent);
+        
+        (this as any).fastMode = config.fastMode !== undefined ? !!config.fastMode : true;
+        (this as any).interimThresholds = config.interimThresholds || { number: 0.6, letter: 0.6 };
+        (this as any).actionCooldownMs = config.cooldownMs !== undefined ? config.cooldownMs : ((this as any).fastMode ? 20 : 100);
+        (this as any).allowedSinglesNumbers = new Set(config.shortTokens?.numbers || []);
+        (this as any).allowedSinglesLetters = new Set(config.shortTokens?.letters || []);
+        (this as any).thresholds = {
+          number: 0.2,
+          letter: 0.2
+        };
+
+        console.log('Configuración de voz cargada:', {
+          cooldownMs: (this as any).actionCooldownMs,
+          allowedNumbers: [...this.allowedSinglesNumbers],
+          allowedLetters: [...this.allowedSinglesLetters],
+          thresholds: this.thresholds,
+          fastMode: (this as any).fastMode,
+          interimThresholds: (this as any).interimThresholds
+        });
+      } catch (error) {
+        console.error('Error al leer la configuración de voz:', error);
+      }
+    }
+
+    initializeRecognition() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) {
+        console.error('El reconocimiento de voz no está soportado en este navegador');
+        return;
+      }
+
+      this.recognition = new SR();
+      this.recognition.continuous = true;
+      this.recognition.interimResults = true;
+      this.recognition.maxAlternatives = 3;
+      this.recognition.lang = 'es-ES';
+
+      this.recognition.onstart = () => {
+        console.log('Reconocimiento de voz iniciado');
+        this.isStarting = false;
+        this.isListening = true;
+        this.updateVoiceButton();
+      };
+
+      this.recognition.onend = () => {
+        console.log('Reconocimiento de voz finalizado');
+        this.isStarting = false;
+        this.isListening = false;
+        this.updateVoiceButton();
+
+        // Evitar bucle de reconexión si hubo error de red o permisos
+        const blockReconnectErrors = new Set(['not-allowed','network','audio-capture']);
+        if ((this as any).lastError && blockReconnectErrors.has((this as any).lastError)) {
+          this.shouldReconnect = false;
+          return;
+        }
+
+        if (this.shouldReconnect) {
+          console.log('Reconectando...');
+          setTimeout(() => {
+            if (this.shouldReconnect && !this.isListening && !this.isStarting) {
+              this.startListening();
+            }
+          }, 1000);
+        }
+      };
+
+      this.recognition.onerror = (event) => {
+        console.error('Error en el reconocimiento de voz:', event.error);
+        (this as any).lastError = event.error;
+        if (event.error === 'not-allowed') {
+          console.log('Permiso de micrófono denegado');
+          this.shouldReconnect = false;
+          this.isListening = false;
+          this.updateVoiceButton();
+        } else if (event.error === 'network' || event.error === 'audio-capture') {
+          console.log('Problema de red o micrófono, deteniendo reconexión automática');
+          this.shouldReconnect = false;
+          this.isListening = false;
+          this.updateVoiceButton();
+        }
+      };
+
+      this.recognition.onresult = (event) => {
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const result = event.results[i];
+          const isFinal = !!result.isFinal;
+
+          for (let j = 0; j < result.length; j++) {
+            const raw = result[j].transcript;
+            const transcript = raw.toLowerCase().trim();
+            const confidence = result[j].confidence;
+
+            console.log(`Alternativa ${j + 1}: "${transcript}" (Confianza: ${confidence}, Final: ${isFinal})`);
+
+            const normalized = this.normalizeTranscript(transcript);
+            const tokenType = this.getTokenType(normalized);
+
+            if (!tokenType) continue; // sin token reconocido
+
+            // Dedupe por token reciente para evitar repetición mientras hablas
+            if (this.lastProcessedToken === normalized && (Date.now() - this.lastProcessedTime) < 350) {
+              continue;
+            }
+
+            // Cooldown mínimo, pero activo para evitar doble click
+            if (this.isOnCooldown()) {
+              continue;
+            }
+
+            const accept = this.shouldAcceptToken(tokenType, confidence, isFinal);
+            if (!accept) continue;
+
+            if (normalized === 'reset') {
+              this.processCommand('reset');
+            } else {
+              const wasProcessed = this.processQuickCommand(normalized, confidence);
+              if (!wasProcessed) continue;
+            }
+
+            this.lastProcessedToken = normalized;
+            this.lastProcessedTime = Date.now();
+          }
+        }
+      };
+    }
+
+    processQuickCommand(token, confidence) {
+      const t = token.trim().toLowerCase();
+
+      // Números
+      if (/^\d+$/.test(t)) {
+        const num = parseInt(t);
+        if (num >= 2 && num <= 6) {
+          this.domElements.lowCardBtn?.click();
+          this.updateLastActionTime();
+          return true;
+        } else if (num >= 7 && num <= 9) {
+          this.domElements.neutralCardBtn?.click();
+          this.updateLastActionTime();
+          return true;
+        } else if (num === 10 || num === 1) { // 10 y AS
+          this.domElements.highCardBtn?.click();
+          this.updateLastActionTime();
+          return true;
+        }
+      }
+
+      // Figuras y AS
+      if (['j','q','k','a'].includes(t)) {
+        this.domElements.highCardBtn?.click();
+        this.updateLastActionTime();
+        return true;
+      }
+
+      return false;
+    }
+
+    normalizeTranscript(transcript) {
+      const t = transcript.toLowerCase().trim();
+
+      // Palabras comunes españolas
+      const numMap = {
+        'dos':'2','tres':'3','cuatro':'4','cinco':'5','seis':'6','siete':'7','ocho':'8','nueve':'9','diez':'10'
+      } as any;
+      const faceMap = {
+        'j':'j','jota':'j','jack':'j',
+        'q':'q','reina':'q','queen':'q',
+        'k':'k','rey':'k','king':'k',
+        'a':'a','as':'a','ace':'a','haz':'a','has':'a'
+      } as any;
+
+      // Inglés por si el motor devuelve en inglés
+      const numMapEn = {
+        'two':'2','three':'3','four':'4','five':'5','six':'6','seven':'7','eight':'8','nine':'9','ten':'10'
+      } as any;
+
+      if (t in numMap) return numMap[t];
+      if (t in numMapEn) return numMapEn[t];
+      if (t in faceMap) return faceMap[t];
+
+      // Buscar números dentro de la frase (ej. "salió dos" / "dos cartas")
+      const words = t.split(/\s+/);
+      for (const w of words) {
+        if (w in numMap) return numMap[w];
+        if (w in numMapEn) return numMapEn[w];
+        if (w in faceMap) return faceMap[w];
+        if (/^\d+$/.test(w)) return w;
+      }
+
+      // Comandos de control
+      if (['reset','restart','reiniciar','resetear','restablecer'].includes(t)) {
+        return 'reset';
+      }
+
+      // Ignorar cualquier otra cosa
+      return null;
+    }
+
+    getTokenType(token) {
+      if (token === 'reset') return 'control';
+      if (/^\d+$/.test(token)) return 'number';
+      if (['j','q','k','a'].includes(token)) return 'letter';
+      return null;
+    }
+
+    shouldAcceptToken(type, confidence, isFinal) {
+      if (isFinal) return true;
+      const thresholds = (this as any).interimThresholds || { number: 0.6, letter: 0.6 };
+      if (type === 'control') return confidence >= 0.5; // reset en interino
+      if (type === 'number') return confidence >= thresholds.number;
+      if (type === 'letter') return confidence >= thresholds.letter;
+      return false;
+    }
+
+    processCommand(command) {
+      command = command.toLowerCase().trim();
+      
+      if (command === 'reset' || command === 'reiniciar') {
+        this.domElements.resetBtn?.click();
+        this.updateLastActionTime();
+      }
+    }
+
+    isOnCooldown() {
+      return (Date.now() - this.lastActionTime) < this.actionCooldownMs;
+    }
+
+    updateLastActionTime() {
+      this.lastActionTime = Date.now();
+    }
+
+    startListening() {
+      if (!this.recognition) {
+        console.error('El reconocimiento de voz no está inicializado');
+        return;
+      }
+
+      if (this.isStarting || this.isListening) {
+        console.log('Reconocimiento ya en proceso');
+        return;
+      }
+
+      try {
+        this.shouldReconnect = true;
+        (this as any).isStarting = true;
+        (this as any).lastError = null;
+        this.recognition.start();
+        console.log('Iniciando reconocimiento de voz...');
+      } catch (error) {
+        console.error('Error al iniciar el reconocimiento de voz:', error);
+        this.shouldReconnect = false;
+        this.isListening = false;
+        this.isStarting = false;
+        this.updateVoiceButton();
+      }
+    }
+
+    stopListening() {
+      if (!this.recognition) return;
+      
+      this.shouldReconnect = false;
+      try {
+        this.recognition.stop();
+        console.log('Deteniendo reconocimiento de voz...');
+      } catch (error) {
+        console.error('Error al detener el reconocimiento de voz:', error);
+      }
+    }
+
+    toggleListening() {
+      if (this.isListening) {
+        this.stopListening();
+      } else {
+        this.startListening();
+      }
+    }
+
+    updateVoiceButton() {
+      if (!this.domElements.voiceBtn || !this.domElements.voiceIcon) return;
+
+      if (this.isListening) {
+        this.domElements.voiceBtn.style.backgroundColor = '#059669';
+        this.domElements.voiceBtn.innerHTML = '<span id="voiceIcon">🎤</span> Desactivar Control por Voz';
+      } else {
+        this.domElements.voiceBtn.style.backgroundColor = '#4CAF50';
+        this.domElements.voiceBtn.innerHTML = '<span id="voiceIcon">🎤</span> Activar Control por Voz';
+      }
+    }
+  }
+
+  // Blackjack Game Logic
+  let deckCount = 6;
+  let runningCount = 0;
+  let cardsPlayed = 0;
+  const CARDS_PER_DECK = 52;
+  let totalCards = deckCount * CARDS_PER_DECK;
+  let voiceCommands;
+
+  // Make functions global so they're accessible from onclick handlers
+  (window as any).updateCount = function updateCount(value) {
+    runningCount += value;
+    cardsPlayed++;
+    
+    const remainingDecks = (totalCards - cardsPlayed) / CARDS_PER_DECK;
+    const trueCount = (remainingDecks > 0) ? (runningCount / remainingDecks).toFixed(2) : "0.00";
+    
+    // Actualizar conteos
+    const runningCountEl = document.getElementById('runningCount');
+    const trueCountEl = document.getElementById('trueCount');
+    const cardsPlayedEl = document.getElementById('cardsPlayed');
+    const cardsRemainingEl = document.getElementById('cardsRemaining');
+    const progressBarEl = document.getElementById('progressBar');
+    
+    if (runningCountEl) runningCountEl.textContent = runningCount.toString();
+    if (trueCountEl) trueCountEl.textContent = trueCount;
+    if (cardsPlayedEl) cardsPlayedEl.textContent = cardsPlayed.toString();
+    if (cardsRemainingEl) cardsRemainingEl.textContent = (totalCards - cardsPlayed).toString();
+    
+    // Actualizar barra de progreso
+    const progress = (cardsPlayed / totalCards) * 100;
+    if (progressBarEl) progressBarEl.style.width = `${progress}%`;
+    
+    // Actualizar color del conteo actual
+    if (runningCountEl) {
+      if (runningCount > 0) {
+        runningCountEl.className = 'text-6xl font-bold text-green-400';
+      } else if (runningCount < 0) {
+        runningCountEl.className = 'text-6xl font-bold text-red-400';
+      } else {
+        runningCountEl.className = 'text-6xl font-bold text-white';
+      }
+    }
+    
+    // Actualizar cartas restantes por grupo
+    updateRemainingCards();
+  };
+
+  function updateRemainingCards() {
+    const lowCardsPerDeck = 20; // 2,3,4,5,6
+    const neutralCardsPerDeck = 12; // 7,8,9
+    const highCardsPerDeck = 20; // 10,J,Q,K,A
+    
+    const totalLowCards = lowCardsPerDeck * deckCount;
+    const totalNeutralCards = neutralCardsPerDeck * deckCount;
+    const totalHighCards = highCardsPerDeck * deckCount;
+    
+    const lowCardsRemainingEl = document.getElementById('lowCardsRemaining');
+    const neutralCardsRemainingEl = document.getElementById('neutralCardsRemaining');
+    const highCardsRemainingEl = document.getElementById('highCardsRemaining');
+    
+    if (lowCardsRemainingEl) lowCardsRemainingEl.textContent = `${totalLowCards} restantes`;
+    if (neutralCardsRemainingEl) neutralCardsRemainingEl.textContent = `${totalNeutralCards} restantes`;
+    if (highCardsRemainingEl) highCardsRemainingEl.textContent = `${totalHighCards} restantes`;
+  }
+
+  (window as any).setDeckCount = function setDeckCount(count, buttonEl) {
+    // Remover clase active de todos los botones
+    document.querySelectorAll('.deck-btn').forEach((btn) => {
+      btn.classList.remove('active');
+      if (btn instanceof HTMLElement) {
+        btn.style.background = 'rgba(255, 255, 255, 0.1)';
+        btn.style.color = 'white';
+        btn.style.transform = 'scale(1)';
+      }
+    });
+    
+    // Agregar clase active al botón seleccionado
+    if (buttonEl && buttonEl instanceof HTMLElement) {
+      buttonEl.classList.add('active');
+      buttonEl.style.background = '#059669';
+      buttonEl.style.color = 'white';
+      buttonEl.style.transform = 'scale(1.05)';
+    }
+    
+    deckCount = count;
+    totalCards = deckCount * CARDS_PER_DECK;
+    
+    // Actualizar estadísticas
+    const totalCardsEl = document.getElementById('totalCards');
+    const cardsRemainingEl = document.getElementById('cardsRemaining');
+    
+    if (totalCardsEl) totalCardsEl.textContent = totalCards.toString();
+    if (cardsRemainingEl) cardsRemainingEl.textContent = totalCards.toString();
+    
+    // Reiniciar conteo
+    resetCount();
+  };
+
+  (window as any).resetCount = function resetCount() {
+    runningCount = 0;
+    cardsPlayed = 0;
+    
+    // Reiniciar displays
+    const runningCountEl = document.getElementById('runningCount');
+    const trueCountEl = document.getElementById('trueCount');
+    const cardsPlayedEl = document.getElementById('cardsPlayed');
+    const cardsRemainingEl = document.getElementById('cardsRemaining');
+    const progressBarEl = document.getElementById('progressBar');
+    
+    if (runningCountEl) {
+      runningCountEl.textContent = '0';
+      runningCountEl.className = 'text-6xl font-bold text-white';
+    }
+    if (trueCountEl) trueCountEl.textContent = '0.00';
+    if (cardsPlayedEl) cardsPlayedEl.textContent = '0';
+    if (cardsRemainingEl) cardsRemainingEl.textContent = totalCards.toString();
+    if (progressBarEl) progressBarEl.style.width = '0%';
+    
+    // Actualizar cartas restantes
+    updateRemainingCards();
+  };
+
+  // Initialize everything when DOM is loaded
+  document.addEventListener('DOMContentLoaded', function() {
+    // Initialize voice commands
+    try {
+      voiceCommands = new VoiceCommands();
+      (window as any).voiceCommands = voiceCommands;
+      console.log('Reconocimiento de voz inicializado correctamente');
+    } catch (error) {
+      console.error('Error al inicializar el reconocimiento de voz:', error);
+      const voiceControlBtn = document.getElementById('voiceControlBtn');
+      if (voiceControlBtn) {
+        voiceControlBtn.style.display = 'none';
+      }
+    }
+    
+    // Initialize card counts
+    updateRemainingCards();
+    
+    // Set 6 decks as active initially
+    const sixDeckBtn = document.querySelector('.deck-btn[onclick="setDeckCount(6, this)"]');
+    if (sixDeckBtn && sixDeckBtn instanceof HTMLElement) {
+      sixDeckBtn.classList.add('active');
+      sixDeckBtn.style.background = '#059669';
+      sixDeckBtn.style.color = 'white';
+      sixDeckBtn.style.transform = 'scale(1.05)';
+    }
+  });
+</script>

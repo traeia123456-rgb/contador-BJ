@@ -1,0 +1,150 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+<Layout>
+  <main class="min-h-screen bg-gradient-to-br from-bj-green to-bj-black text-bj-white flex items-center justify-center p-6">
+    <section class="w-full max-w-md bg-black/60 backdrop-blur rounded-xl border border-white/10 p-6 shadow-xl animate-fade-in">
+      <h1 class="text-2xl font-semibold mb-4">Iniciar sesión</h1>
+      <p class="text-bj-gray mb-6">Accede a tu cuenta para continuar.</p>
+
+      <form id="loginForm" class="space-y-4">
+        <div>
+          <label class="block text-sm mb-1" for="identity">Usuario o Email</label>
+          <input 
+            id="identity" 
+            name="identity" 
+            type="text" 
+            class="w-full rounded-md bg-white/10 border border-white/20 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-bj-green" 
+            required 
+            placeholder="usuario123 o tu@email.com"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm mb-1" for="password">Contraseña</label>
+          <input 
+            id="password" 
+            name="password" 
+            type="password" 
+            class="w-full rounded-md bg-white/10 border border-white/20 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-bj-green" 
+            required
+            placeholder="••••••••"
+          />
+        </div>
+
+        <label class="flex items-center gap-2 text-sm">
+          <input id="remember" name="remember" type="checkbox" />
+          <span>Recordar sesión</span>
+        </label>
+
+        <div id="message" class="text-sm text-red-500 hidden"></div>
+
+        <button 
+          type="submit" 
+          class="w-full bg-bj-green hover:bg-green-600 transition-colors text-black font-semibold rounded-md px-3 py-2 flex items-center justify-center"
+        >
+          <span>Iniciar sesión</span>
+          <div role="status" class="ml-2 hidden">
+            <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+        </button>
+      </form>
+
+      <p class="mt-6 text-sm text-bj-gray">¿No tienes cuenta? <a href="/register" class="underline hover:text-white">Regístrate</a></p>
+    </section>
+  </main>
+</Layout>
+
+<script>
+  import { signIn } from "../lib/auth";
+  import { getSupabase } from "../lib/supabaseClient";
+
+  const form = document.getElementById('loginForm') as HTMLFormElement;
+  const message = document.getElementById('message') as HTMLDivElement;
+  const submitButton = form?.querySelector('button[type="submit"]') as HTMLButtonElement;
+  const spinner = submitButton?.querySelector('[role="status"]') as HTMLDivElement;
+
+  function showLoading(loading: boolean) {
+    if (loading) {
+      submitButton.disabled = true;
+      spinner.classList.remove('hidden');
+      submitButton.querySelector('span')!.textContent = 'Iniciando sesión...';
+    } else {
+      submitButton.disabled = false;
+      spinner.classList.add('hidden');
+      submitButton.querySelector('span')!.textContent = 'Iniciar sesión';
+    }
+  }
+
+  function showError(text: string) {
+    message.textContent = text;
+    message.classList.remove('hidden');
+  }
+
+  function hideError() {
+    message.textContent = '';
+    message.classList.add('hidden');
+  }
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideError();
+    showLoading(true);
+
+    try {
+      const fd = new FormData(form);
+      const identity = String(fd.get('identity') || '').trim();
+      const password = String(fd.get('password') || '');
+
+      if (!identity || !password) {
+        throw new Error('Por favor ingresa tu usuario/email y contraseña');
+      }
+
+      // Determinar si es email o username
+      let email = identity;
+      if (!identity.includes('@')) {
+        const supabase = getSupabase();
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('username', identity)
+          .maybeSingle();
+
+        if (!profile?.email) {
+          throw new Error('Usuario no encontrado');
+        }
+        email = profile.email;
+      }
+
+      const { data, error } = await signIn(email, password);
+      if (error) throw error;
+
+      // Login exitoso
+      message.textContent = 'Sesión iniciada correctamente. Redirigiendo...';
+      message.classList.remove('hidden', 'text-red-500');
+      message.classList.add('text-green-500');
+
+      // Revisar rol y redirigir en consecuencia
+      const supabase2 = getSupabase();
+      const { data: { session } } = await supabase2.auth.getSession();
+      let target = '/dashboard';
+      if (session?.user?.id) {
+        const { data: prof } = await supabase2
+          .from('profiles')
+          .select('role')
+          .eq('id', session.user.id)
+          .single();
+        if (prof?.role === 'admin') target = '/admin';
+      }
+      setTimeout(() => { window.location.href = target; }, 800);
+
+    } catch (err: any) {
+      showError(err?.message || 'No se pudo iniciar sesión');
+    } finally {
+      showLoading(false);
+    }
+  });
+</script>

@@ -1,0 +1,1403 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+<Layout>
+  <main class="min-h-screen bg-gradient-to-br from-bj-green to-bj-black text-bj-white p-6">
+    <header class="flex items-center justify-between max-w-6xl mx-auto">
+      <h1 class="text-2xl font-semibold">Dashboard</h1>
+      <div class="flex items-center gap-2">
+        <a href="/blackjack-counter" target="_blank" class="bg-green-600 hover:bg-green-700 border border-green-500 rounded-md px-3 py-2 font-semibold">🃏 Contador Blackjack</a>
+        <a id="admin-link" href="/admin" class="hidden bg-white/10 hover:bg-white/20 border border-white/20 rounded-md px-3 py-2">Admin</a>
+        <button id="logout" class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-md px-3 py-2">Salir</button>
+      </div>
+    </header>
+    <!-- Indicador de edición de snapshot -->
+    <div id="editing-indicator" class="max-w-6xl mx-auto mt-3 hidden">
+      <div class="flex items-center gap-3 bg-yellow-500/10 border border-yellow-400/30 text-yellow-300 rounded-md px-3 py-2">
+        <span class="text-sm font-medium">Editando snapshot:</span>
+        <span id="editing-indicator-name" class="text-sm"></span>
+        <span id="editing-indicator-date" class="text-xs opacity-70 ml-auto"></span>
+        <button id="editing-indicator-cancel" class="text-xs bg-white/10 hover:bg-white/20 border border-white/20 rounded-md px-2 py-1">Salir de edición</button>
+      </div>
+    </div>
+
+    <!-- Interfaz estática solicitada: Racha y Manos / Porcentaje % / Diler -->
+    <section class="mt-8 max-w-6xl mx-auto grid gap-6">
+      <!-- Fila superior: 3 columnas -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Racha y Manos -->
+        <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-4">
+          <h2 class="text-lg font-semibold mb-3 text-center">RACHA Y MANOS</h2>
+          <div class="mb-4">
+            <label class="text-sm text-bj-white/80">CANTIDAD DE MANOS</label>
+            <input id="cantidad-manos" type="number" value="0" readonly class="mt-1 w-full px-3 py-2 rounded-md bg-white/10 border border-white/20" />
+          </div>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-bj-white/70">
+                <th>ULTIMAS RACHAS</th>
+                <th class="text-right">CANTIDAD</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>GANADAS</td><td id="r-ganadas" class="text-right">0</td></tr>
+              <tr><td>PERDIDAS</td><td id="r-perdidas" class="text-right">0</td></tr>
+              <tr><td>MANOS SIN BJ</td><td id="r-sin-bj" class="text-right">0</td></tr>
+              <tr><td>GANE DOBLADA</td><td id="r-gane-doblada" class="text-right">0</td></tr>
+              <tr><td>PERDI DOBLADA</td><td id="r-perdi-doblada" class="text-right">0</td></tr>
+              <tr><td>DIVIDI GANE</td><td id="r-dividi-gane" class="text-right">0</td></tr>
+              <tr><td>DIVIDI PERDI</td><td id="r-dividi-perdi" class="text-right">0</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Porcentaje % -->
+        <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-4">
+          <h2 class="text-lg font-semibold mb-3 text-center">PORCENTAJE %</h2>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-bj-white/70">
+                <th>ACCION</th>
+                <th>UNIDAD</th>
+                <th class="text-right">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>GANADAS</td><td id="pct-ganadas-unit">0</td><td id="pct-ganadas" class="text-right">0%</td></tr>
+              <tr><td>PERDIDAS</td><td id="pct-perdidas-unit">0</td><td id="pct-perdidas" class="text-right">0%</td></tr>
+              <tr><td>EMPATE</td><td id="pct-empate-unit">0</td><td id="pct-empate" class="text-right">0%</td></tr>
+              <tr class="text-bj-white/70"><td></td><td></td><td id="pct-total" class="text-right">100%</td></tr>
+            </tbody>
+          </table>
+          <div class="mt-4 space-y-2">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-sm text-bj-white/70">Workspace</label>
+                <select id="ws-select" class="w-full px-2 py-1 rounded-md bg-white/10 border border-white/20 text-sm"></select>
+              </div>
+              <div>
+                <label class="text-sm text-bj-white/70">Proyecto</label>
+                <select id="project-select" class="w-full px-2 py-1 rounded-md bg-white/10 border border-white/20 text-sm"></select>
+              </div>
+            </div>
+            <div class="flex justify-center mt-2">
+              <button id="btn-save" class="px-4 py-2 rounded-md border border-white/20 bg-white/10 hover:bg-white/20">GUARDAR</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Diler -->
+        <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-4">
+          <h2 class="text-lg font-semibold mb-3 text-center">DILER</h2>
+          <div class="mb-4">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="text-left text-bj-white/70">
+                  <th>RACHAS DILER</th>
+                  <th class="text-right">CANTIDAD</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td>VOLO</td><td id="d-streak-volo" class="text-right">0</td></tr>
+                <tr><td>NO VOLO</td><td id="d-streak-novolo" class="text-right">0</td></tr>
+                <tr><td>BJ</td><td id="d-streak-bj" class="text-right">0</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <table class="w-full text-sm">
+            <thead>
+              <tr class="text-left text-bj-white/70">
+                <th>ACCION</th>
+                <th>UNIDAD</th>
+                <th class="text-right">%</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr><td>VOLO</td><td id="d-pct-volo-unit">0</td><td id="d-pct-volo" class="text-right">0%</td></tr>
+              <tr><td>NO VOLO</td><td id="d-pct-novolo-unit">0</td><td id="d-pct-novolo" class="text-right">0%</td></tr>
+              <tr><td>BJ</td><td id="d-pct-bj-unit">0</td><td id="d-pct-bj" class="text-right">0%</td></tr>
+              <tr class="text-bj-white/70"><td></td><td></td><td id="d-pct-total" class="text-right">100%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tabla de manos -->
+      <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-4">
+        <h2 class="text-lg font-semibold mb-3">Registro de manos</h2>
+        <!-- Controles de limpieza -->
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+          <label class="flex items-center gap-2 text-sm bg-white/5 px-2 py-1 rounded">
+            <input id="chk-col-resultado" type="checkbox" checked /> Resultado
+          </label>
+          <label class="flex items-center gap-2 text-sm bg-white/5 px-2 py-1 rounded">
+            <input id="chk-col-diler" type="checkbox" checked /> Diler
+          </label>
+          <button id="btn-clear-selected" class="px-3 py-1 rounded-md border border-white/20 bg-white/10 hover:bg-white/20 text-sm">Limpiar seleccionadas</button>
+          <button id="btn-clear-all" class="px-3 py-1 rounded-md border border-white/20 bg-white/10 hover:bg-white/20 text-sm">Limpiar todo</button>
+          <span class="mx-2 text-bj-white/40">·</span>
+          <button id="btn-undo" class="px-3 py-1 rounded-md border border-white/20 bg-white/10 hover:bg-white/20 text-sm">Deshacer</button>
+          <button id="btn-clear-empty" class="px-3 py-1 rounded-md border border-white/20 bg-white/10 hover:bg-white/20 text-sm">Limpiar filas vacías</button>
+        </div>
+        <table class="w-full text-sm" id="hands-table">
+          <thead>
+            <tr class="text-left text-bj-white/70">
+              <th class="w-20">MANOS</th>
+              <th>RESULTADO JUGADOR</th>
+              <th class="w-40">DILER</th>
+              <th class="w-16 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="hands-body"></tbody>
+        </table>
+        <!-- Pager -->
+        <div class="flex items-center justify-between mt-3">
+          <div class="text-sm text-bj-white/70">Página <span id="page-number">1</span> de <span id="page-count">1</span></div>
+          <div class="flex items-center gap-2">
+            <button id="page-prev" class="px-3 py-1 rounded-md border border-white/20 bg-white/10 hover:bg-white/20 text-sm">Anterior</button>
+            <select id="page-select" class="px-2 py-1 rounded-md bg-white/10 border border-white/20 text-sm"></select>
+            <button id="page-next" class="px-3 py-1 rounded-md border border-white/20 bg-white/10 hover:bg-white/20 text-sm">Siguiente</button>
+          </div>
+        </div>
+
+        <!-- listas de autocompletado -->
+        <datalist id="resultado-options">
+          <option value="GANE"></option>
+          <option value="PERDI"></option>
+          <option value="EMPATE"></option>
+          <option value="BJ"></option>
+          <option value="GANE DOBLADA"></option>
+          <option value="PERDI DOBLADA"></option>
+          <option value="DIVIDI GANE"></option>
+          <option value="DIVIDI PERDI"></option>
+        </datalist>
+        <datalist id="diler-options">
+          <option value="VOLO"></option>
+          <option value="NO VOLO"></option>
+          <option value="BJ"></option>
+        </datalist>
+      </div>
+
+      <!-- Listado de snapshots (movido arriba) -->
+      <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-4 mt-6">
+        <div class="flex items-end gap-3">
+          <div>
+            <label class="text-sm text-bj-white/70">Desde</label>
+            <input id="filter-from" type="date" class="px-2 py-1 rounded-md bg-white/10 border border-white/20 text-sm" />
+          </div>
+          <div>
+            <label class="text-sm text-bj-white/70">Hasta</label>
+            <input id="filter-to" type="date" class="px-2 py-1 rounded-md bg-white/10 border border-white/20 text-sm" />
+          </div>
+          <button id="btn-load-snapshots" class="px-3 py-1 rounded-md border border-white/20 bg-white/10 hover:bg-white/20 text-sm">Cargar snapshots</button>
+        </div>
+        <table class="w-full mt-4">
+          <thead>
+            <tr class="text-bj-white/70 text-left">
+              <th class="py-1 pr-2">Fecha</th>
+              <th class="py-1 pr-2">Nombre</th>
+              <th class="py-1 pr-2">Workspace</th>
+              <th class="py-1 pr-2">Proyecto</th>
+              <th class="py-1 pr-2">Manos</th>
+              <th class="py-1 pr-2 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="snapshots-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<script>
+  // Solo UI por ahora: acciones básicas (logout) y mostrar enlace Admin si luego se habilita
+  import { getSupabase } from "../lib/supabaseClient";
+  const supabase = getSupabase(true);
+  // Workspace/Proyecto caches
+  let workspaces: Array<{id:string,name:string}> = [];
+  let projectsByWs: Record<string, Array<{id:string,name:string}>> = {};
+  // Estado de edición de snapshot restaurado
+  let editingSnapshotId: string | null = null;
+  let editingSnapshotCreatedAt: string | null = null;
+  let editingSnapshotWsId: string | null = null;
+  let editingSnapshotProjectId: string | null = null;
+
+  function setEditingIndicator(active: boolean, name?: string, dateISO?: string){
+    const cont = document.getElementById('editing-indicator');
+    const nameEl = document.getElementById('editing-indicator-name');
+    const dateEl = document.getElementById('editing-indicator-date');
+    if (!cont || !nameEl || !dateEl) return;
+    if (active){
+      cont.classList.remove('hidden');
+      nameEl.textContent = name || '';
+      dateEl.textContent = dateISO ? new Date(dateISO).toLocaleString() : '';
+    } else {
+      cont.classList.add('hidden');
+      nameEl.textContent = '';
+      dateEl.textContent = '';
+    }
+    const cancelBtn = document.getElementById('editing-indicator-cancel');
+    cancelBtn?.addEventListener('click', () => {
+      editingSnapshotId = null; editingSnapshotCreatedAt = null; editingSnapshotWsId = null; editingSnapshotProjectId = null;
+      setEditingIndicator(false);
+    });
+  }
+
+  // Check authentication status on page load
+  (async () => {
+    console.log('Checking authentication status...');
+    let session: any = null; let error: any = null;
+    try {
+      const res = await supabase.auth.getSession();
+      session = res?.data?.session || null;
+      error = res?.error || null;
+    } catch (e:any){
+      error = e;
+    }
+    console.log('Session check result:', { session: session ? 'Active' : 'None', error });
+    
+    if (!session) {
+      // Si el error proviene de refresh token inválido, limpiar y redirigir
+      const msg = error?.message || '';
+      if (msg.includes('Invalid Refresh Token')){
+        try { await supabase.auth.signOut(); } catch {}
+        try { Object.keys(localStorage).forEach(k => { if (k.startsWith('sb-') && k.endsWith('-auth-token')) localStorage.removeItem(k); }); } catch {}
+        window.location.href = '/login';
+        return;
+      }
+      console.warn('No active session detected - user should log in');
+      // Redirect to login page for security
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 2000);
+      return;
+    }
+    
+    console.log('User authenticated:', session.user.email);
+    // Check if user is admin
+    const { data: isAdmin, error: adminError } = await supabase.rpc('is_admin');
+    console.log('Admin check result:', { isAdmin, adminError });
+    
+    if (!adminError && isAdmin) {
+      document.getElementById('admin-link')?.classList.remove('hidden');
+    }
+  })();
+
+  document.getElementById('logout')?.addEventListener('click', async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  });
+
+  async function loadWorkspaces(){
+    try {
+      console.log('Loading workspaces...');
+      
+      // First, let's check if user is logged in
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('Current session:', session ? 'Active' : 'None');
+      
+      if (!session) {
+        console.warn('No active session - user needs to log in');
+        // Don't show alert, just return silently
+        return;
+      }
+      
+      console.log('User ID:', session.user.id);
+      console.log('User email:', session.user.email);
+      
+      // Check if user has workspace membership
+      const { data: memberships, error: membershipError } = await supabase
+        .from('workspace_members')
+        .select('workspace_id, role')
+        .eq('user_id', session.user.id);
+      
+      console.log('Workspace memberships:', { memberships, membershipError });
+      
+      if (membershipError) {
+        console.error('Error checking memberships:', membershipError);
+        return;
+      }
+      
+      if (!memberships || memberships.length === 0) {
+        console.log('No workspace memberships found for user');
+        // Create a default empty option
+        const sel = document.getElementById('ws-select') as HTMLSelectElement | null;
+        if (sel){
+          sel.innerHTML = '<option value="">No workspaces available</option>';
+        }
+        return;
+      }
+      
+      // Load workspaces that user has access to
+      const workspaceIds = memberships.map(m => m.workspace_id);
+      console.log('Loading workspaces with IDs:', workspaceIds);
+      
+      const { data, error } = await supabase
+        .from('workspaces')
+        .select('id, name')
+        .in('id', workspaceIds)
+        .order('name');
+      
+      console.log('Workspace query result:', { data, error });
+      
+      if (error) { 
+        console.error('Error al cargar workspaces:', error); 
+        return; 
+      }
+      
+      workspaces = data || [];
+      console.log('Workspaces loaded:', workspaces.length);
+      
+      if (workspaces.length === 0) {
+        console.warn('No workspaces found with user memberships');
+        // Create a default empty option
+        const sel = document.getElementById('ws-select') as HTMLSelectElement | null;
+        if (sel){
+          sel.innerHTML = '<option value="">No workspaces available</option>';
+        }
+        return;
+      }
+      
+      const sel = document.getElementById('ws-select') as HTMLSelectElement | null;
+      if (sel){
+        sel.innerHTML = '<option value="">(Sin workspace)</option>';
+        workspaces.forEach(ws => {
+          const opt = document.createElement('option'); opt.value = ws.id; opt.textContent = ws.name; sel.appendChild(opt);
+        });
+      }
+    } catch (error) {
+      console.error('Error en loadWorkspaces:', error);
+      // Don't show alert, just log
+    }
+  }
+
+  async function loadProjectsForWorkspace(wsId: string){
+    if (!wsId){
+      const sel = document.getElementById('project-select') as HTMLSelectElement | null;
+      if (sel) sel.innerHTML = '<option value="">(Sin proyecto)</option>';
+      return;
+    }
+    try {
+      const { data, error } = await supabase.from('projects').select('id,name').eq('workspace_id', wsId).order('name');
+      if (error) { 
+        console.error('Error al cargar proyectos:', error); 
+        return; 
+      }
+      projectsByWs[wsId] = data || [];
+      const sel = document.getElementById('project-select') as HTMLSelectElement | null;
+      if (sel){
+        sel.innerHTML = '<option value="">(Sin proyecto)</option>';
+        projectsByWs[wsId].forEach(p => { const opt = document.createElement('option'); opt.value = p.id; opt.textContent = p.name; sel.appendChild(opt); });
+      }
+    } catch (error) {
+      console.error('Error en loadProjectsForWorkspace:', error);
+    }
+  }
+
+  // Tabla editable con autocompletado y numeración automática
+  const RESULT_COLOR = {
+    'GANE': 'bg-green-700',
+    'GANE DOBLADA': 'bg-green-700',
+    'DIVIDI GANE': 'bg-green-700',
+    'PERDI': 'bg-red-700',
+    'PERDI DOBLADA': 'bg-red-700',
+    'DIVIDI PERDI': 'bg-red-700',
+    'EMPATE': 'bg-white/20',
+    'BJ': 'bg-green-700'
+  } as Record<string, string>;
+
+  function paintRowColor(input: HTMLInputElement){
+    const tr = input.closest('tr');
+    if (!tr) return;
+    // limpia
+    tr.classList.remove('bg-green-700','bg-red-700','bg-white/20');
+    const key = (input.value || '').trim().toUpperCase();
+    const cls = RESULT_COLOR[key];
+    if (cls) tr.classList.add(cls);
+  }
+
+  function makeRow(index: number, data?: {resultado?: string, diler?: string}){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td class="py-2 pr-2 text-bj-white/80">${index}</td>
+      <td class="py-2 pr-2">
+        <input class="w-full px-2 py-1 rounded-md bg-white/10 border border-white/20" list="resultado-options" placeholder="Escribe o selecciona" />
+      </td>
+      <td class="py-2 pr-2">
+        <input class="w-full px-2 py-1 rounded-md bg-white/10 border border-white/20" list="diler-options" placeholder="Escribe o selecciona" />
+      </td>
+      <td class="py-2 text-right">
+        <button class="row-delete px-2 py-1 rounded-md bg-white/10 hover:bg-white/20 border border-white/20">X</button>
+      </td>
+    `;
+    const [resInput, dilerInput] = tr.querySelectorAll('input') as NodeListOf<HTMLInputElement>;
+    if (data?.resultado) resInput.value = data.resultado;
+    if (data?.diler) dilerInput.value = data.diler;
+    paintRowColor(resInput);
+
+    // si se escribe en la última fila, crear una nueva
+    const body = document.getElementById('hands-body') as HTMLTableSectionElement;
+    function ensureNextRow(){
+      const isLast = tr === body.lastElementChild;
+      const hasText = resInput.value.trim() !== '' || dilerInput.value.trim() !== '';
+      if (isLast && hasText) {
+        // Actualizar datos actuales y, si se completan 10 manos, crear nueva página
+        updateCurrentPageFromDOM();
+        if (pages[currentPageIndex].length >= PAGE_SIZE) {
+          createNewPage();
+        } else {
+          addEmptyRow();
+        }
+        updateCantidadDeManosInput();
+        recomputeStats();
+      }
+    }
+    resInput.addEventListener('input', ()=>{
+      paintRowColor(resInput);
+      updateCurrentPageFromDOM();
+      recomputeStats();
+      ensureNextRow();
+    });
+    dilerInput.addEventListener('input', ()=>{
+      updateCurrentPageFromDOM();
+      recomputeStats();
+      ensureNextRow();
+    });
+
+    const delBtn = tr.querySelector('.row-delete') as HTMLButtonElement | null;
+    delBtn?.addEventListener('click', () => {
+      pushUndo();
+      tr.remove();
+      const body = document.getElementById('hands-body') as HTMLTableSectionElement;
+      if (body.children.length === 0) addEmptyRow();
+      renumberRows();
+      updateCurrentPageFromDOM();
+      updateCantidadDeManosInput();
+      recomputeStats();
+    });
+    return tr;
+  }
+
+  function renumberRows(){
+    const rows = Array.from(document.querySelectorAll('#hands-body tr'));
+    rows.forEach((tr, i) => {
+      const cell = tr.querySelector('td');
+      if (cell) {
+        const offset = currentPageIndex * PAGE_SIZE;
+        cell.textContent = String(offset + i + 1);
+      }
+    });
+  }
+
+  function addEmptyRow(){
+    const body = document.getElementById('hands-body') as HTMLTableSectionElement;
+    const index = body.children.length + 1;
+    body.appendChild(makeRow(index));
+  }
+
+  // Paginación
+  const PAGE_SIZE = 10;
+  let pages: Array<{resultado: string, diler: string}[]> = [[]];
+  let currentPageIndex = 0;
+
+  // Agregados para estadísticas de rachas y porcentajes
+  function allRows(){
+    updateCurrentPageFromDOM();
+    return pages.flat();
+  }
+
+  function recomputeStats(){
+    const rows = allRows();
+    const norm = (s: string) => (s||'').trim().toUpperCase();
+    const total = rows.length;
+
+    // Conteos totales para porcentajes (mantenemos lógica previa)
+    const wonTotal = rows.filter(r => ['GANE','GANE DOBLADA','DIVIDI GANE','BJ'].includes(norm(r.resultado))).length;
+    const lostTotal = rows.filter(r => ['PERDI','PERDI DOBLADA','DIVIDI PERDI'].includes(norm(r.resultado))).length;
+    const tieTotal = rows.filter(r => norm(r.resultado) === 'EMPATE').length;
+
+    // Rachas: considerar SOLO dos: GANADAS y PERDIDAS
+    // GANADAS: cuentan consecutivos que CONTIENEN "GANE" o son exactamente "BJ";
+    // se reinicia en 0 al detectar 'PERDI' o si NO contiene 'GANE' ni es 'BJ'.
+    let streakGanadas = 0;
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const r = norm(rows[i].resultado);
+      if (r.includes('GANE') || r === 'BJ') {
+        streakGanadas++;
+      } else {
+        break;
+      }
+    }
+    // PERDIDAS: cuentan consecutivos que CONTIENEN la palabra "PERDI" (palabra principal);
+    // se reinicia en 0 al detectar 'GANE' o si NO contiene 'PERDI'.
+    let streakPerdidas = 0;
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const r = norm(rows[i].resultado);
+      if (r.includes('PERDI')) {
+        streakPerdidas++;
+      } else {
+        break;
+      }
+    }
+
+    const setText = (id: string, text: string) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+    setText('r-ganadas', String(streakGanadas));
+    setText('r-perdidas', String(streakPerdidas));
+
+    // Contadores de "cuántas manos han pasado SIN que salga" cierta acción
+    const sinceLast = (match: (r:{resultado:string,diler:string})=>boolean) => {
+      let c = 0;
+      for (let i = rows.length - 1; i >= 0; i--) {
+        if (match(rows[i])) break; // se detiene cuando aparece la acción
+        c++;
+      }
+      return c;
+    };
+    // MANOS SIN BJ: contar manos transcurridas desde la última vez que el RESULTADO fue BJ
+    const sinBJ = sinceLast(r => norm(r.resultado) === 'BJ');
+    const ganeDob = sinceLast(r => norm(r.resultado).includes('GANE DOBLADA'));
+    const perdiDob = sinceLast(r => norm(r.resultado).includes('PERDI DOBLADA'));
+    const divGane = sinceLast(r => norm(r.resultado).includes('DIVIDI GANE'));
+    const divPerdi = sinceLast(r => norm(r.resultado).includes('DIVIDI PERDI'));
+
+    setText('r-sin-bj', String(sinBJ));
+    setText('r-gane-doblada', String(ganeDob));
+    setText('r-perdi-doblada', String(perdiDob));
+    setText('r-dividi-gane', String(divGane));
+    setText('r-dividi-perdi', String(divPerdi));
+
+    // Porcentajes
+    const pct = (n: number) => total > 0 ? Math.round((n*1000)/total)/10 : 0;
+    setText('pct-ganadas-unit', String(wonTotal));
+    setText('pct-perdidas-unit', String(lostTotal));
+    setText('pct-empate-unit', String(tieTotal));
+    setText('pct-ganadas', `${pct(wonTotal)}%`);
+    setText('pct-perdidas', `${pct(lostTotal)}%`);
+    setText('pct-empate', `${pct(tieTotal)}%`);
+    setText('pct-total', '100%');
+
+    // --- DILER: rachas y porcentajes ---
+    const dVoloTotal = rows.filter(r => norm(r.diler) === 'VOLO').length;
+    const dNoVoloTotal = rows.filter(r => norm(r.diler) === 'NO VOLO').length;
+    const dBjTotal = rows.filter(r => norm(r.diler) === 'BJ').length;
+
+    let dStreakVolo = 0;
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const d = norm(rows[i].diler);
+      if (d === 'VOLO') dStreakVolo++; else break;
+    }
+    let dStreakNoVolo = 0;
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const d = norm(rows[i].diler);
+      if (d === 'NO VOLO') dStreakNoVolo++; else break;
+    }
+    let dStreakBj = 0;
+    for (let i = rows.length - 1; i >= 0; i--) {
+      const d = norm(rows[i].diler);
+      if (d === 'BJ') dStreakBj++; else break;
+    }
+
+    setText('d-streak-volo', String(dStreakVolo));
+    setText('d-streak-novolo', String(dStreakNoVolo));
+    setText('d-streak-bj', String(dStreakBj));
+
+    setText('d-pct-volo-unit', String(dVoloTotal));
+    setText('d-pct-novolo-unit', String(dNoVoloTotal));
+    setText('d-pct-bj-unit', String(dBjTotal));
+    setText('d-pct-volo', `${pct(dVoloTotal)}%`);
+    setText('d-pct-novolo', `${pct(dNoVoloTotal)}%`);
+    setText('d-pct-bj', `${pct(dBjTotal)}%`);
+    setText('d-pct-total', '100%');
+  }
+
+  // Construir objeto de estadísticas (para guardar)
+  function collectStats(){
+    const rows = allRows();
+    const norm = (s: string) => (s||'').trim().toUpperCase();
+    const total = rows.length;
+    const pct = (n: number) => total > 0 ? Math.round((n*1000)/total)/10 : 0;
+
+    // Totales jugador
+    const wonTotal = rows.filter(r => ['GANE','GANE DOBLADA','DIVIDI GANE','BJ'].includes(norm(r.resultado))).length;
+    const lostTotal = rows.filter(r => ['PERDI','PERDI DOBLADA','DIVIDI PERDI'].includes(norm(r.resultado))).length;
+    const tieTotal = rows.filter(r => norm(r.resultado) === 'EMPATE').length;
+
+    // Rachas jugador
+    let streakGanadas = 0; for (let i = rows.length - 1; i >= 0; i--) { const r = norm(rows[i].resultado); if (r.includes('GANE') || r === 'BJ') streakGanadas++; else break; }
+    let streakPerdidas = 0; for (let i = rows.length - 1; i >= 0; i--) { const r = norm(rows[i].resultado); if (r.includes('PERDI')) streakPerdidas++; else break; }
+    const sinceLast = (match: (r:{resultado:string,diler:string})=>boolean) => { let c=0; for(let i=rows.length-1;i>=0;i--){ if(match(rows[i])) break; c++; } return c; };
+    const sinBJ = sinceLast(r => norm(r.resultado) === 'BJ');
+    const ganeDob = sinceLast(r => norm(r.resultado).includes('GANE DOBLADA'));
+    const perdiDob = sinceLast(r => norm(r.resultado).includes('PERDI DOBLADA'));
+    const divGane = sinceLast(r => norm(r.resultado).includes('DIVIDI GANE'));
+    const divPerdi = sinceLast(r => norm(r.resultado).includes('DIVIDI PERDI'));
+
+    // Diler
+    const dVoloTotal = rows.filter(r => norm(r.diler) === 'VOLO').length;
+    const dNoVoloTotal = rows.filter(r => norm(r.diler) === 'NO VOLO').length;
+    const dBjTotal = rows.filter(r => norm(r.diler) === 'BJ').length;
+    let dStreakVolo = 0; for (let i = rows.length - 1; i >= 0; i--) { const d = norm(rows[i].diler); if (d === 'VOLO') dStreakVolo++; else break; }
+    let dStreakNoVolo = 0; for (let i = rows.length - 1; i >= 0; i--) { const d = norm(rows[i].diler); if (d === 'NO VOLO') dStreakNoVolo++; else break; }
+    let dStreakBj = 0; for (let i = rows.length - 1; i >= 0; i--) { const d = norm(rows[i].diler); if (d === 'BJ') dStreakBj++; else break; }
+
+    return {
+      total,
+      jugador: {
+        rachas: { ganadas: streakGanadas, perdidas: streakPerdidas, sinBJ, ganeDob, perdiDob, divGane, divPerdi },
+        porcentajes: {
+          unidad: { ganadas: wonTotal, perdidas: lostTotal, empate: tieTotal },
+          porcentajes: { ganadas: pct(wonTotal), perdidas: pct(lostTotal), empate: pct(tieTotal) }
+        }
+      },
+      diler: {
+        rachas: { volo: dStreakVolo, noVolo: dStreakNoVolo, bj: dStreakBj },
+        porcentajes: {
+          unidad: { volo: dVoloTotal, noVolo: dNoVoloTotal, bj: dBjTotal },
+          porcentajes: { volo: pct(dVoloTotal), noVolo: pct(dNoVoloTotal), bj: pct(dBjTotal) }
+        }
+      }
+    };
+  }
+
+  function serializeDashboard(){
+    updateCurrentPageFromDOM();
+    return {
+      version: 1,
+      timestamp: new Date().toISOString(),
+      totalHands: getTotalHandsCount(),
+      currentPageIndex,
+      pages,
+      rows: allRows(),
+      stats: collectStats()
+    };
+  }
+
+  // Guardar en Supabase
+  async function saveSnapshot(){
+    try{
+      const payload = serializeDashboard();
+      const { data: sessionRes } = await supabase.auth.getSession();
+      const userId = sessionRes?.session?.user?.id ?? null;
+      const wsSel = document.getElementById('ws-select') as HTMLSelectElement | null;
+      const prSel = document.getElementById('project-select') as HTMLSelectElement | null;
+      // Si estamos editando y los selectores están vacíos, usar los IDs del snapshot
+      const workspace_id = (wsSel?.value || editingSnapshotWsId || null);
+      const project_id = (prSel?.value || editingSnapshotProjectId || null);
+      
+      // Determinar flujo de edición
+      let targetDate = new Date();
+      let replaceOriginal = false;
+      if (editingSnapshotId){
+        const confirmReplace = confirm('¿Guardar encima del original?');
+        if (confirmReplace){
+          replaceOriginal = true;
+          const keepOriginalDate = confirm('¿Usar la fecha ORIGINAL del snapshot? \nAceptar = mantener fecha original\nCancelar = usar fecha nueva');
+          if (keepOriginalDate && editingSnapshotCreatedAt){
+            targetDate = new Date(editingSnapshotCreatedAt);
+          } else {
+            targetDate = new Date();
+          }
+        } else {
+          // Guardar como nuevo -> fecha actual
+          targetDate = new Date();
+        }
+      }
+
+      // Generar nombre con fecha y hora
+      const now = targetDate;
+      const dateStr = now.toLocaleDateString('es-ES');
+      const timeStr = now.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'});
+      const workspaceName = workspaces.find(w => w.id === workspace_id)?.name || 'Sin workspace';
+      const projectName = (projectsByWs[workspace_id || ''] || []).find(p => p.id === project_id)?.name || 'Sin proyecto';
+      const snapshotName = `${workspaceName} - ${projectName} - ${dateStr} ${timeStr}`;
+      
+      // Agregar el nombre al payload
+      (payload as any).snapshot_name = snapshotName;
+      payload.timestamp = now.toISOString();
+      
+      if (replaceOriginal && editingSnapshotId){
+        // Actualizar snapshot existente
+        const updateData: any = { data: payload, created_at: now.toISOString(), workspace_id, project_id };
+        if (userId) updateData.user_id = userId;
+        const { error } = await supabase.from('bj_snapshots').update(updateData).eq('id', editingSnapshotId);
+        if (error) throw error;
+        alert(`Snapshot actualizado: ${snapshotName}`);
+      } else {
+        // Insertar nuevo snapshot
+        const insertData: any = { data: payload, created_at: now.toISOString(), workspace_id, project_id };
+        if (userId) insertData.user_id = userId;
+        const { error } = await supabase.from('bj_snapshots').insert(insertData);
+        if (error) throw error;
+        alert(`Snapshot guardado: ${snapshotName}`);
+      }
+      // Limpiar estado de edición después de guardar
+      editingSnapshotId = null; editingSnapshotCreatedAt = null; editingSnapshotWsId = null; editingSnapshotProjectId = null;
+      setEditingIndicator(false);
+      
+      // Recargar el historial si está visible
+      const historialSection = document.getElementById('snapshots-section');
+      if (historialSection && !historialSection.classList.contains('hidden')) {
+        loadSnapshots();
+      }
+      
+    }catch(e:any){
+      console.error('Error al guardar', e);
+      alert('Error al guardar: ' + (e?.message ?? e));
+    }
+  }
+
+  document.getElementById('btn-save')?.addEventListener('click', saveSnapshot);
+
+  // Listado y restauración de snapshots
+  async function loadSnapshots(){
+    const wsSel = document.getElementById('ws-select') as HTMLSelectElement | null;
+    const prSel = document.getElementById('project-select') as HTMLSelectElement | null;
+    const fromEl = document.getElementById('filter-from') as HTMLInputElement | null;
+    const toEl = document.getElementById('filter-to') as HTMLInputElement | null;
+    let q = supabase.from('bj_snapshots').select('id,created_at,workspace_id,project_id,data').order('created_at', { ascending: false }).limit(50);
+    if (wsSel?.value) q = q.eq('workspace_id', wsSel.value);
+    if (prSel?.value) q = q.eq('project_id', prSel.value);
+    if (fromEl?.value) q = q.gte('created_at', new Date(fromEl.value + 'T00:00:00Z').toISOString());
+    if (toEl?.value) q = q.lte('created_at', new Date(toEl.value + 'T23:59:59Z').toISOString());
+    const { data, error } = await q;
+    if (error) { console.error(error); alert('Error cargando snapshots'); return; }
+    const tbody = document.getElementById('snapshots-body'); if (!tbody) return;
+    tbody.innerHTML = '';
+    (data||[]).forEach(row => {
+      const tr = document.createElement('tr');
+      const wsName = workspaces.find(w => w.id === row.workspace_id)?.name || '';
+      const projs = projectsByWs[row.workspace_id || ''] || [];
+      const pjName = projs.find(p => p.id === row.project_id)?.name || '';
+      const totalHands = row.data?.totalHands ?? row.data?.stats?.total ?? 0;
+      const dateStr = new Date(row.created_at).toLocaleString();
+      const snapshotName = row.data?.snapshot_name || `${wsName} - ${pjName}`;
+      
+      tr.innerHTML = `
+        <td class="py-2 pr-2 text-sm">${dateStr}</td>
+        <td class="py-2 pr-2 text-sm font-medium">${snapshotName}</td>
+        <td class="py-2 pr-2 text-sm">${wsName}</td>
+        <td class="py-2 pr-2 text-sm">${pjName}</td>
+        <td class="py-2 pr-2 text-sm">${totalHands}</td>
+        <td class="py-2 pr-2 text-right">
+          <button data-id="${row.id}" class="btn-restore text-blue-400 hover:text-blue-300 text-sm mr-2">Restaurar</button>
+          <button data-id="${row.id}" class="btn-download text-yellow-400 hover:text-yellow-300 text-sm mr-2">Descargar</button>
+          <button data-delete="${row.id}" class="btn-delete text-red-400 hover:text-red-300 text-sm">Eliminar</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+    
+    // Event listeners para restaurar
+    tbody.querySelectorAll('.btn-restore').forEach(btn => {
+      btn.addEventListener('click', async (ev) => {
+        const id = (ev.target as HTMLButtonElement).getAttribute('data-id');
+        if (!id) return;
+        const { data, error } = await supabase.from('bj_snapshots').select('id, data, created_at, workspace_id, project_id').eq('id', id).single();
+        if (error) { console.error(error); alert('Error al cargar snapshot'); return; }
+        restoreFromSnapshot(data.data);
+        // Marcar estado de edición
+        editingSnapshotId = data.id;
+        editingSnapshotCreatedAt = data.created_at;
+        editingSnapshotWsId = data.workspace_id || null;
+        editingSnapshotProjectId = data.project_id || null;
+        // Indicador visual
+        const snapName = data.data?.snapshot_name || 'Snapshot';
+        setEditingIndicator(true, snapName, data.created_at);
+      });
+    });
+    
+    // Event listeners para eliminar
+    tbody.querySelectorAll('.btn-delete').forEach(btn => {
+      btn.addEventListener('click', async (ev) => {
+        const id = (ev.target as HTMLButtonElement).getAttribute('data-delete');
+        if (!id) return;
+        if (!confirm('¿Eliminar este snapshot? Esta acción no se puede deshacer.')) return;
+        const { error } = await supabase.from('bj_snapshots').delete().eq('id', id);
+        if (error) { console.error(error); alert('Error al eliminar snapshot'); return; }
+        alert('Snapshot eliminado');
+        loadSnapshots(); // Recargar lista
+      });
+    });
+    
+    // Event listeners para descargar
+    tbody.querySelectorAll('.btn-download').forEach(btn => {
+      btn.addEventListener('click', async (ev) => {
+        const id = (ev.target as HTMLButtonElement).getAttribute('data-id');
+        if (!id) return;
+        await downloadSnapshotExcel(id);
+      });
+    });
+  }
+
+  function restoreFromSnapshot(snapshot: any){
+    try{
+      const version = snapshot?.version ?? 1;
+      if (version !== 1) console.warn('Versión de snapshot no esperada', version);
+      pages = Array.isArray(snapshot.pages) ? snapshot.pages : [[]];
+      currentPageIndex = Math.min(Math.max(0, snapshot.currentPageIndex ?? 0), pages.length - 1);
+      renderPage();
+      alert('Snapshot restaurado');
+    }catch(e){
+      console.error('Error restaurando snapshot', e);
+      alert('Error restaurando snapshot');
+    }
+  }
+
+  document.getElementById('btn-load-snapshots')?.addEventListener('click', loadSnapshots);
+
+  // --- Descarga a Excel usando plantilla XLSM SIN SheetJS (JSZip + OOXML) ---
+  async function downloadSnapshotExcel(id: string){
+    try {
+      const { data, error } = await supabase.from('bj_snapshots').select('data, created_at').eq('id', id).single();
+      if (error) { console.error(error); alert('Error cargando snapshot'); return; }
+      const snap = (data as any)?.data || {};
+      // Límites de seguridad
+      const MAX_ROWS = 500; // máximo de filas a escribir
+      const MAX_STR_LEN = 256; // longitud máxima de cadenas
+      const sanitizeText = (val: string) => (String(val ?? '').trim()).slice(0, MAX_STR_LEN);
+
+      // Cargar plantilla XLSM desde /Plantilla_BJ_FINAL.xlsm (debe estar en public)
+      const resp = await fetch('/Plantilla_BJ_FINAL.xlsm');
+      if (!resp.ok) {
+        alert('No se encontró la plantilla en /Plantilla_BJ_FINAL.xlsm. Coloca el archivo en la carpeta public.');
+        return;
+      }
+      const buf = await resp.arrayBuffer();
+
+      // Cargar JSZip y manipular OOXML
+      const JSZipMod: any = await import('jszip');
+      const JSZip = JSZipMod.default ?? JSZipMod;
+      const zip = await JSZip.loadAsync(buf);
+
+      const parseXML = (t: string) => new DOMParser().parseFromString(t, 'application/xml');
+      const serializeXML = (doc: Document) => new XMLSerializer().serializeToString(doc);
+      const colToNum = (col: string) => col.split('').reduce((n, ch) => n * 26 + (ch.charCodeAt(0) - 64), 0);
+      const numToCol = (n: number) => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+      const ref = (c: number, r: number) => `${numToCol(c)}${r}`;
+
+      // Localizar hoja 'ORIGINAL' o primera
+      const workbookXml = await zip.file('xl/workbook.xml')!.async('text');
+      const relsXml = await zip.file('xl/_rels/workbook.xml.rels')!.async('text');
+      const wbDoc = parseXML(workbookXml);
+      const relsDoc = parseXML(relsXml);
+      const sheets = Array.from(wbDoc.getElementsByTagName('sheet'));
+      let targetRelId = sheets.find(s => (s.getAttribute('name')||'').toUpperCase() === 'ORIGINAL')?.getAttribute('r:id');
+      if (!targetRelId && sheets.length) targetRelId = sheets[0].getAttribute('r:id') || '';
+      if (!targetRelId) { alert('No se encontró ninguna hoja en el libro.'); return; }
+      const rel = Array.from(relsDoc.getElementsByTagName('Relationship')).find(r => r.getAttribute('Id') === targetRelId);
+      if (!rel) { alert('No se pudo resolver la hoja en workbook.xml.rels'); return; }
+      const sheetPath = `xl/${rel.getAttribute('Target')}`;
+      const sheetXml = await zip.file(sheetPath)!.async('text');
+      const sheetDoc = parseXML(sheetXml);
+
+      // Resolver sharedStrings para búsqueda de encabezados
+      let sst: string[] = [];
+      if (zip.file('xl/sharedStrings.xml')){
+        const sstXml = await zip.file('xl/sharedStrings.xml')!.async('text');
+        const sstDoc = parseXML(sstXml);
+        sst = Array.from(sstDoc.getElementsByTagName('si')).map(si => {
+          const tNodes = si.getElementsByTagName('t');
+          if (tNodes.length) return tNodes[0].textContent || '';
+          const rNodes = si.getElementsByTagName('r');
+          return Array.from(rNodes).map(rn => rn.getElementsByTagName('t')[0]?.textContent || '').join('');
+        });
+      }
+      const getCellText = (cEl: Element) => {
+        const t = cEl.getAttribute('t');
+        if (t === 's') { const idx = Number(cEl.getElementsByTagName('v')[0]?.textContent || ''); return sst[idx] ?? ''; }
+        if (t === 'inlineStr') { return cEl.getElementsByTagName('t')[0]?.textContent || ''; }
+        const v = cEl.getElementsByTagName('v')[0]?.textContent || '';
+        return v;
+      };
+
+      // Buscar encabezados MANOS / RESULTADO JUGADOR / DILER
+      const sheetData = sheetDoc.getElementsByTagName('sheetData')[0];
+      const rows = Array.from(sheetData.getElementsByTagName('row'));
+      const headers = { MANOS: null as any, RES: null as any, DIL: null as any };
+      for (const row of rows){
+        const rnum = Number(row.getAttribute('r')||'0');
+        const cells = Array.from(row.getElementsByTagName('c'));
+        for (const c of cells){
+          const refAttr = c.getAttribute('r')||'';
+          const m = refAttr.match(/([A-Z]+)(\d+)/); if (!m) continue;
+          const cnum = colToNum(m[1]);
+          const text = (getCellText(c)||'').toUpperCase().trim();
+          if (text === 'MANOS') headers.MANOS = { r: rnum, c: cnum };
+          else if (text === 'RESULTADO JUGADOR') headers.RES = { r: rnum, c: cnum };
+          else if (text === 'DILER') headers.DIL = { r: rnum, c: cnum };
+        }
+      }
+
+      let startRow = 28; let colManos = colToNum('B'); let colRes = colToNum('C'); let colDil = colToNum('D');
+      if (headers.MANOS && headers.RES && headers.DIL && headers.MANOS.r === headers.RES.r && headers.RES.r === headers.DIL.r){
+        startRow = headers.MANOS.r + 1;
+        colManos = headers.MANOS.c; colRes = headers.RES.c; colDil = headers.DIL.c;
+      }
+
+      const handsRaw: Array<{resultado?: string, diler?: string}> = (snap?.pages || []).flat().filter((r: any) => {
+        const res = (r?.resultado || '').trim(); const dil = (r?.diler || '').trim();
+        return res !== '' || dil !== '';
+      });
+      const hands = handsRaw.slice(0, MAX_ROWS);
+
+      // Crear / asegurar filas y escribir datos
+      const ensureRow = (n: number) => {
+        let row = rows.find(r => Number(r.getAttribute('r')) === n);
+        if (!row){
+          row = sheetDoc.createElement('row');
+          row.setAttribute('r', String(n));
+          // insertar manteniendo orden ascendente por r
+          const next = rows.find(r => Number(r.getAttribute('r')) > n);
+          if (next && next.parentNode){ next.parentNode.insertBefore(row, next); }
+          else { sheetData.appendChild(row); }
+          rows.push(row);
+          rows.sort((a,b) => Number(a.getAttribute('r')) - Number(b.getAttribute('r')));
+        }
+        // asegurar spans para las columnas usadas
+        const minC = Math.min(colManos, colRes, colDil);
+        const maxC = Math.max(colManos, colRes, colDil);
+        row.setAttribute('spans', `${minC}:${maxC}`);
+        return row;
+      };
+      const removeCell = (rowEl: Element, cnum: number) => {
+        const cref = ref(cnum, Number(rowEl.getAttribute('r')));
+        const cell = Array.from(rowEl.getElementsByTagName('c')).find(c => c.getAttribute('r') === cref);
+        if (cell) rowEl.removeChild(cell);
+      };
+      const insertCellSorted = (rowEl: Element, cEl: Element) => {
+        const cRef = cEl.getAttribute('r') || '';
+        const m = cRef.match(/([A-Z]+)(\d+)/);
+        const newC = m ? colToNum(m[1]) : 1;
+        const cells = Array.from(rowEl.getElementsByTagName('c'));
+        const next = cells.find(c => {
+          const r = c.getAttribute('r')||''; const mm = r.match(/([A-Z]+)(\d+)/);
+          const cnum = mm ? colToNum(mm[1]) : 1;
+          return cnum > newC;
+        });
+        if (next) rowEl.insertBefore(cEl, next); else rowEl.appendChild(cEl);
+      };
+      const setNum = (rowEl: Element, cnum: number, val: number) => {
+        const cref = ref(cnum, Number(rowEl.getAttribute('r')));
+        // si ya existe, reutilizar
+        const existing = Array.from(rowEl.getElementsByTagName('c')).find(c => c.getAttribute('r') === cref);
+        let cEl = existing ?? sheetDoc.createElement('c');
+        cEl.setAttribute('r', cref);
+        cEl.removeAttribute('t');
+        // limpiar hijos
+        Array.from(cEl.childNodes).forEach(n => cEl.removeChild(n));
+        const vEl = sheetDoc.createElement('v'); vEl.textContent = String(val);
+        cEl.appendChild(vEl);
+        if (!existing) insertCellSorted(rowEl, cEl);
+      };
+      const setStr = (rowEl: Element, cnum: number, val: string) => {
+        const cref = ref(cnum, Number(rowEl.getAttribute('r')));
+        const existing = Array.from(rowEl.getElementsByTagName('c')).find(c => c.getAttribute('r') === cref);
+        let cEl = existing ?? sheetDoc.createElement('c');
+        cEl.setAttribute('r', cref);
+        cEl.setAttribute('t', 'inlineStr');
+        // limpiar hijos
+        Array.from(cEl.childNodes).forEach(n => cEl.removeChild(n));
+        const isEl = sheetDoc.createElement('is'); const tEl = sheetDoc.createElement('t'); tEl.textContent = val;
+        isEl.appendChild(tEl); cEl.appendChild(isEl);
+        if (!existing) insertCellSorted(rowEl, cEl);
+      };
+
+      // Limpiar 200 filas destino y escribir manos
+      for (let i=0;i<200;i++){ const r = ensureRow(startRow + i); removeCell(r, colManos); removeCell(r, colRes); removeCell(r, colDil); }
+      hands.forEach((h, idx) => { const r = ensureRow(startRow + idx); setNum(r, colManos, idx + 1); setStr(r, colRes, sanitizeText(h.resultado || '')); setStr(r, colDil, sanitizeText(h.diler || '')); });
+
+      // Actualizar “CANTIDAD DE MANOS” si existe el encabezado
+      const findQty = () => {
+        for (const row of rows){
+          for (const c of Array.from(row.getElementsByTagName('c'))){
+            const text = (getCellText(c)||'').toUpperCase().trim();
+            if (text === 'CANTIDAD DE MANOS'){
+              const m = (c.getAttribute('r')||'').match(/([A-Z]+)(\d+)/); if (!m) return null;
+              const col = colToNum(m[1]); const rnum = Number(m[2]);
+              return { r: rnum, c: col + 1 };
+            }
+          }
+        }
+        return null;
+      };
+      const qty = findQty();
+      if (qty){ const row = ensureRow(qty.r); removeCell(row, qty.c); setNum(row, qty.c, hands.length); }
+
+      // --- Escribir estadísticas en tablas de la plantilla ---
+      const rowsAll = (snap?.pages || []).flat().filter((r:any) => (r?.resultado||'').trim()!=='' || (r?.diler||'').trim()!=='');
+      const norm = (s:string) => (s||'').trim().toUpperCase();
+      const total = rowsAll.length;
+      const pctVal = (n:number) => total>0 ? Math.round((n*1000)/total)/10 : 0; // porcentaje 0..100 con 1 decimal
+      const stats = snap?.stats ?? (()=>{
+        const wonTotal = rowsAll.filter((r: { resultado: string }) => ['GANE','GANE DOBLADA','DIVIDI GANE','BJ'].includes(norm(r.resultado))).length;
+        const lostTotal = rowsAll.filter((r: { resultado: string }) => ['PERDI','PERDI DOBLADA','DIVIDI PERDI'].includes(norm((r as { resultado: string }).resultado))).length;
+        const tieTotal = rowsAll.filter((r: any) => norm(r.resultado) === 'EMPATE').length;
+        let streakGanadas=0; for(let i=rowsAll.length-1;i>=0;i--){ const r=norm(rowsAll[i].resultado); if(r.includes('GANE')||r==='BJ') streakGanadas++; else break; }
+        let streakPerdidas=0; for(let i=rowsAll.length-1;i>=0;i--){ const r=norm(rowsAll[i].resultado); if(r.includes('PERDI')) streakPerdidas++; else break; }
+        const sinceLast=(fn:(r:any)=>boolean)=>{ let c=0; for(let i=rowsAll.length-1;i>=0;i--){ if(fn(rowsAll[i])) break; c++; } return c; };
+        const sinBJ = sinceLast((r: any) => norm(r.resultado) === 'BJ');
+        const ganeDob = sinceLast((r: any) => norm(r.resultado).includes('GANE DOBLADA'));
+        const perdiDob = sinceLast((r: any) => norm(r.resultado).includes('PERDI DOBLADA'));
+        const divGane = sinceLast((r: any) => norm(r.resultado).includes('DIVIDI GANE'));
+        const divPerdi = sinceLast((r: any) => norm(r.resultado).includes('DIVIDI PERDI'));
+        const dVoloTotal = rowsAll.filter((r: { diler: string }) => norm(r.diler) === 'VOLO').length;
+
+        const dNoVoloTotal = rowsAll.filter((r: { diler: string }) => norm(r.diler) === 'NO VOLO').length;
+        const dBjTotal = rowsAll.filter((r: { diler: string }) => norm(r.diler) === 'BJ').length;
+        let dStreakVolo=0; for(let i=rowsAll.length-1;i>=0;i--){ const d=norm(rowsAll[i].diler); if(d==='VOLO') dStreakVolo++; else break; }
+        let dStreakNoVolo=0; for(let i=rowsAll.length-1;i>=0;i--){ const d=norm(rowsAll[i].diler); if(d==='NO VOLO') dStreakNoVolo++; else break; }
+        let dStreakBj=0; for(let i=rowsAll.length-1;i>=0;i--){ const d=norm(rowsAll[i].diler); if(d==='BJ') dStreakBj++; else break; }
+        return {
+          total,
+          jugador: {
+            rachas: { ganadas: streakGanadas, perdidas: streakPerdidas, sinBJ, ganeDob, perdiDob, divGane, divPerdi },
+            porcentajes: {
+              unidad: { ganadas: wonTotal, perdidas: lostTotal, empate: tieTotal },
+              porcentajes: { ganadas: pctVal(wonTotal), perdidas: pctVal(lostTotal), empate: pctVal(tieTotal) }
+            }
+          },
+          diler: {
+            rachas: { volo: dStreakVolo, noVolo: dStreakNoVolo, bj: dStreakBj },
+            porcentajes: {
+              unidad: { volo: dVoloTotal, noVolo: dNoVoloTotal, bj: dBjTotal },
+              porcentajes: { volo: pctVal(dVoloTotal), noVolo: pctVal(dNoVoloTotal), bj: pctVal(dBjTotal) }
+            }
+          }
+        };
+      })();
+
+      // Helper: encontrar columnas de un grupo de encabezados en una misma fila
+      const findHeaderGroup = (keys: string[]) => {
+        for(const row of rows){
+          const cells = Array.from(row.getElementsByTagName('c'));
+          const texts = cells.map(c=>({ cnum: colToNum((c.getAttribute('r')||'').match(/([A-Z]+)(\d+)/)?.[1]||'A'), txt: (getCellText(c)||'').toUpperCase().trim() }));
+          const map: Record<string, number> = {};
+          keys.forEach(k=>{
+            const hit = texts.find(t=>t.txt===k.toUpperCase()); if(hit) map[k]=hit.cnum;
+          });
+          if(keys.every(k=>map[k]>0)) return { row: Number(row.getAttribute('r')), cols: map };
+        }
+        return null;
+      };
+
+      // 1) Tabla PORCENTAJE % del jugador
+      const grpJugador = findHeaderGroup(['ACCION','UNIDAD','%']);
+      if (grpJugador){
+        const colA = grpJugador.cols['ACCION']; const colU = grpJugador.cols['UNIDAD']; const colP = grpJugador.cols['%'];
+        for(const row of rows){
+          const rnum = Number(row.getAttribute('r'));
+          if (rnum <= grpJugador.row) continue;
+          const accionCell = Array.from(row.getElementsByTagName('c')).find(c => c.getAttribute('r') === ref(colA, rnum));
+          const name = accionCell ? (getCellText(accionCell)||'').toUpperCase().trim() : '';
+          if (!name) break; // fin de la tabla
+          if (['GANADAS','PERDIDAS','EMPATE'].includes(name)){
+            const unidad = stats.jugador.porcentajes.unidad[name.toLowerCase() as 'ganadas'|'perdidas'|'empate'];
+            const por = stats.jugador.porcentajes.porcentajes[name.toLowerCase() as 'ganadas'|'perdidas'|'empate'] / 100; // decimal para formato %
+            setNum(row, colU, unidad);
+            setNum(row, colP, por);
+          }
+        }
+      }
+
+      // 2) Tabla RACHAS DILER (conteo de rachas)
+      const grpRachasDiler = findHeaderGroup(['RACHAS DILER','CANTIDAD']);
+      if (grpRachasDiler){
+        const colR = grpRachasDiler.cols['RACHAS DILER']; const colC = grpRachasDiler.cols['CANTIDAD'];
+        for(const row of rows){
+          const rnum = Number(row.getAttribute('r')); if (rnum <= grpRachasDiler.row) continue;
+          const labelCell = Array.from(row.getElementsByTagName('c')).find(c => c.getAttribute('r') === ref(colR, rnum));
+          const name = labelCell ? (getCellText(labelCell)||'').toUpperCase().trim() : '';
+          if (!name) break;
+          if (['VOLO','NO VOLO','BJ'].includes(name)){
+            const valMap: any = { 'VOLO': stats.diler.rachas.volo, 'NO VOLO': stats.diler.rachas.noVolo, 'BJ': stats.diler.rachas.bj };
+            setNum(row, colC, valMap[name]);
+          }
+        }
+      }
+
+      // 3) Tabla ACCION/UNIDAD/% del DILER
+      const grpDiler = findHeaderGroup(['ACCION','UNIDAD','%']);
+      if (grpDiler){
+        const colA = grpDiler.cols['ACCION']; const colU = grpDiler.cols['UNIDAD']; const colP = grpDiler.cols['%'];
+        for(const row of rows){
+          const rnum = Number(row.getAttribute('r')); if (rnum <= grpDiler.row) continue;
+          const accionCell = Array.from(row.getElementsByTagName('c')).find(c => c.getAttribute('r') === ref(colA, rnum));
+          const name = accionCell ? (getCellText(accionCell)||'').toUpperCase().trim() : '';
+          if (!name) break;
+          if (['VOLO','NO VOLO','BJ'].includes(name)){
+            const unidadMap: any = { 'VOLO': stats.diler.porcentajes.unidad.volo, 'NO VOLO': stats.diler.porcentajes.unidad.noVolo, 'BJ': stats.diler.porcentajes.unidad.bj };
+            const pctMap: any = { 'VOLO': stats.diler.porcentajes.porcentajes.volo, 'NO VOLO': stats.diler.porcentajes.porcentajes.noVolo, 'BJ': stats.diler.porcentajes.porcentajes.bj };
+            setNum(row, colU, unidadMap[name]);
+            setNum(row, colP, pctMap[name] / 100);
+          }
+        }
+      }
+
+      // 4) Tabla ULTIMAS RACHAS (conteos específicos)
+      const grpUltR = findHeaderGroup(['ULTIMAS RACHAS','CANTIDAD']);
+      if (grpUltR){
+        const colL = grpUltR.cols['ULTIMAS RACHAS']; const colC = grpUltR.cols['CANTIDAD'];
+        const map: Record<string, number> = {
+          'GANADAS': stats.jugador.rachas.ganadas,
+          'PERDIDAS': stats.jugador.rachas.perdidas,
+          'MANOS SIN BJ': stats.jugador.rachas.sinBJ,
+          'GANE DOBLADA': stats.jugador.rachas.ganeDob,
+          'PERDI DOBLADA': stats.jugador.rachas.perdiDob,
+          'DIVIDI GANE': stats.jugador.rachas.divGane,
+          'DIVIDI PERDI': stats.jugador.rachas.divPerdi
+        };
+        for(const row of rows){
+          const rnum = Number(row.getAttribute('r')); if (rnum <= grpUltR.row) continue;
+          const labelCell = Array.from(row.getElementsByTagName('c')).find(c => c.getAttribute('r') === ref(colL, rnum));
+          const name = labelCell ? (getCellText(labelCell)||'').toUpperCase().trim() : '';
+          if (!name) break;
+          if (map[name] !== undefined){ setNum(row, colC, map[name]); }
+        }
+      }
+
+      // Actualizar dimensión del worksheet para evitar reparaciones de Excel
+      const dimEl = sheetDoc.getElementsByTagName('dimension')[0];
+      const endCol = Math.max(colManos, colRes, colDil);
+      const endRow = startRow + Math.max(hands.length, 1);
+      if (dimEl) dimEl.setAttribute('ref', `A1:${numToCol(endCol)}${endRow}`);
+
+      // Sustituir hoja y generar blob
+      zip.file(sheetPath, serializeXML(sheetDoc));
+      const outBlob = await zip.generateAsync({ type: 'blob' });
+      const fname = `${(snap?.snapshot_name || 'snapshot')}.xlsm`;
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(outBlob);
+      a.download = fname;
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(a.href);
+      a.remove();
+    } catch (e: any) {
+      console.error(e);
+      alert('Error generando Excel: ' + (e?.message ?? e));
+    }
+  }
+  document.getElementById('ws-select')?.addEventListener('change', async (ev) => {
+    const wsId = (ev.target as HTMLSelectElement).value;
+    await loadProjectsForWorkspace(wsId);
+  });
+
+  function getTotalHandsCount(){
+    updateCurrentPageFromDOM();
+    return pages.reduce((sum, p) => sum + p.length, 0);
+  }
+
+  function updateCantidadDeManosInput(){
+    const el = document.getElementById('cantidad-manos') as HTMLInputElement | null;
+    if (el) el.value = String(getTotalHandsCount());
+  }
+
+  function updateCurrentPageFromDOM(){
+    pages[currentPageIndex] = snapshotRows();
+  }
+
+  function updatePagerUI(){
+    const countEl = document.getElementById('page-count');
+    const numEl = document.getElementById('page-number');
+    const sel = document.getElementById('page-select') as HTMLSelectElement | null;
+    if (countEl) countEl.textContent = String(pages.length);
+    if (numEl) numEl.textContent = String(currentPageIndex + 1);
+    if (sel) {
+      sel.innerHTML = '';
+      for (let i=0;i<pages.length;i++) {
+        const opt = document.createElement('option');
+        opt.value = String(i);
+        opt.textContent = `Página ${i+1}`;
+        if (i === currentPageIndex) opt.selected = true;
+        sel.appendChild(opt);
+      }
+    }
+  }
+
+  function renderPage(){
+    const body = document.getElementById('hands-body') as HTMLTableSectionElement;
+    body.innerHTML = '';
+    const rows = pages[currentPageIndex];
+    rows.forEach((d, i) => body.appendChild(makeRow(i+1, d)));
+    addEmptyRow();
+    renumberRows();
+    updatePagerUI();
+    updateCantidadDeManosInput();
+    recomputeStats();
+  }
+
+  function createNewPage(){
+    pages.push([]);
+    currentPageIndex = pages.length - 1;
+    renderPage();
+    // Focus primer input
+    const first = document.querySelector('#hands-body tr input') as HTMLInputElement | null;
+    first?.focus();
+    updateCantidadDeManosInput();
+    recomputeStats();
+  }
+
+  function loadExamples(){
+    const example = [
+      {resultado:'GANE', diler:'VOLO'},
+      {resultado:'PERDI', diler:'NO VOLO'},
+      {resultado:'EMPATE', diler:'BJ'},
+      {resultado:'BJ'},
+      {resultado:'GANE DOBLADA'},
+      {resultado:'PERDI DOBLADA'},
+      {resultado:'PERDI DOBLADA'},
+      {resultado:'DIVIDI GANE'},
+      {resultado:'DIVIDI PERDI'}
+    ];
+    const body = document.getElementById('hands-body') as HTMLTableSectionElement;
+    body.innerHTML = '';
+    example.forEach((d, i) => body.appendChild(makeRow(i+1, d)));
+    addEmptyRow();
+  }
+
+  // init: comenzar con la tabla vacía (una fila lista para escribir)
+  (async function initEmpty(){
+    console.log('Initializing dashboard...');
+    pages = [[]];
+    currentPageIndex = 0;
+    renderPage();
+    updateCantidadDeManosInput();
+    recomputeStats();
+    // Cargar workspaces al iniciar
+    console.log('Loading workspaces...');
+    await loadWorkspaces();
+    console.log('Dashboard initialization complete');
+  })();
+
+  // Limpieza de columnas
+  function clearColumns(opts: { resultado?: boolean, diler?: boolean }){
+    pushUndo();
+    const rows = Array.from(document.querySelectorAll('#hands-body tr')) as HTMLTableRowElement[];
+    rows.forEach(tr => {
+      const inputs = tr.querySelectorAll('input') as NodeListOf<HTMLInputElement>;
+      const resInput = inputs[0];
+      const dilerInput = inputs[1];
+      if (opts.resultado && resInput) { resInput.value = ''; paintRowColor(resInput); }
+      if (opts.diler && dilerInput) { dilerInput.value = ''; }
+    });
+  }
+
+  function clearAll(){
+    pushUndo();
+    clearColumns({ resultado: true, diler: true });
+    const body = document.getElementById('hands-body') as HTMLTableSectionElement;
+    // mantener solo una fila vacía
+    body.innerHTML = '';
+    addEmptyRow();
+    renumberRows();
+    recomputeStats();
+  }
+
+  function cleanEmptyRows(){
+    pushUndo();
+    const body = document.getElementById('hands-body') as HTMLTableSectionElement;
+    const rows = Array.from(body.querySelectorAll('tr')) as HTMLTableRowElement[];
+    rows.forEach(tr => {
+      const inputs = tr.querySelectorAll('input') as NodeListOf<HTMLInputElement>;
+      const res = (inputs[0]?.value || '').trim();
+      const dil = (inputs[1]?.value || '').trim();
+      if (res === '' && dil === '') tr.remove();
+    });
+    if (body.children.length === 0) addEmptyRow();
+    renumberRows();
+    recomputeStats();
+  }
+
+  // Pila de deshacer (snapshot de filas)
+  const undoStack: Array<{ rows: { resultado: string, diler: string }[] }> = [];
+  const pagerUndoStack: Array<{ pages: Array<{resultado:string,diler:string}[]>, idx: number }> = [];
+  function snapshotRows(){
+    const rows = Array.from(document.querySelectorAll('#hands-body tr')) as HTMLTableRowElement[];
+    return rows.map(tr => {
+      const inputs = tr.querySelectorAll('input') as NodeListOf<HTMLInputElement>;
+      return { resultado: inputs[0]?.value || '', diler: inputs[1]?.value || '' };
+    }).filter(r => r.resultado.trim() !== '' || r.diler.trim() !== '');
+  }
+  function setRows(rows: { resultado: string, diler: string }[]){
+    const body = document.getElementById('hands-body') as HTMLTableSectionElement;
+    body.innerHTML = '';
+    rows.forEach((d, i) => body.appendChild(makeRow(i+1, d)));
+    addEmptyRow();
+    renumberRows();
+    recomputeStats();
+  }
+  function pushUndo(){
+    undoStack.push({ rows: snapshotRows() });
+    // snapshot de todas las páginas
+    pagerUndoStack.push({
+      pages: pages.map(p => p.map(r => ({resultado: r.resultado, diler: r.diler}))),
+      idx: currentPageIndex
+    });
+  }
+
+  // Eventos UI
+  document.getElementById('btn-clear-selected')?.addEventListener('click', () => {
+    const res = (document.getElementById('chk-col-resultado') as HTMLInputElement)?.checked;
+    const dil = (document.getElementById('chk-col-diler') as HTMLInputElement)?.checked;
+    clearColumns({ resultado: res, diler: dil });
+    updateCurrentPageFromDOM();
+    updateCantidadDeManosInput();
+    recomputeStats();
+  });
+  document.getElementById('btn-clear-all')?.addEventListener('click', () => {
+    clearAll();
+    pages[currentPageIndex] = [];
+    renderPage();
+    updateCantidadDeManosInput();
+    recomputeStats();
+  });
+  document.getElementById('btn-undo')?.addEventListener('click', () => {
+    const lastPages = pagerUndoStack.pop();
+    if (lastPages) {
+      pages = lastPages.pages.map(p => p.map(r => ({resultado: r.resultado, diler: r.diler})));
+      currentPageIndex = Math.min(Math.max(0, lastPages.idx), pages.length - 1);
+      renderPage();
+      updateCantidadDeManosInput();
+      recomputeStats();
+      return;
+    }
+    const last = undoStack.pop();
+    if (!last) return;
+    setRows(last.rows);
+    updateCantidadDeManosInput();
+    recomputeStats();
+  });
+  document.getElementById('btn-clear-empty')?.addEventListener('click', () => {
+    cleanEmptyRows();
+    updateCurrentPageFromDOM();
+    updateCantidadDeManosInput();
+    recomputeStats();
+  });
+
+  // Pager events
+  document.getElementById('page-prev')?.addEventListener('click', () => {
+    updateCurrentPageFromDOM();
+    if (currentPageIndex > 0) {
+      currentPageIndex--;
+      renderPage();
+    }
+  });
+  document.getElementById('page-next')?.addEventListener('click', () => {
+    updateCurrentPageFromDOM();
+    if (currentPageIndex < pages.length - 1) {
+      currentPageIndex++;
+      renderPage();
+    } else {
+      createNewPage();
+    }
+  });
+  document.getElementById('page-select')?.addEventListener('change', (ev) => {
+    updateCurrentPageFromDOM();
+    const sel = ev.target as HTMLSelectElement;
+    const idx = parseInt(sel.value, 10);
+    if (!Number.isNaN(idx)) {
+      currentPageIndex = Math.min(Math.max(0, idx), pages.length - 1);
+      renderPage();
+    }
+  });
+  </script>
+<!-- Sección de snapshots movida arriba -->

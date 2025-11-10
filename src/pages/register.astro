@@ -1,0 +1,194 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+<Layout>
+  <main class="min-h-screen bg-gradient-to-br from-bj-green to-bj-black text-bj-white flex items-center justify-center p-6">
+    <section class="w-full max-w-md bg-black/60 backdrop-blur rounded-xl border border-white/10 p-6 shadow-xl animate-fade-in">
+      <h1 class="text-2xl font-semibold mb-4">Crear cuenta</h1>
+      <p class="text-bj-gray mb-6">Regístrate para empezar a usar la aplicación.</p>
+
+      <form id="registerForm" class="space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm mb-1" for="first_name">Nombre</label>
+            <input 
+              id="first_name" 
+              name="first_name" 
+              type="text" 
+              class="w-full rounded-md bg-white/10 border border-white/20 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-bj-green"
+              placeholder="Juan"
+            />
+          </div>
+          <div>
+            <label class="block text-sm mb-1" for="last_name">Apellido</label>
+            <input 
+              id="last_name" 
+              name="last_name" 
+              type="text" 
+              class="w-full rounded-md bg-white/10 border border-white/20 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-bj-green"
+              placeholder="Pérez"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-sm mb-1" for="username">Nombre de usuario</label>
+          <input 
+            id="username" 
+            name="username" 
+            type="text" 
+            class="w-full rounded-md bg-white/10 border border-white/20 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-bj-green" 
+            required
+            placeholder="usuario123"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm mb-1" for="email">Email</label>
+          <input 
+            id="email" 
+            name="email" 
+            type="email" 
+            class="w-full rounded-md bg-white/10 border border-white/20 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-bj-green" 
+            required
+            placeholder="tu@email.com"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm mb-1" for="password">Contraseña</label>
+          <input 
+            id="password" 
+            name="password" 
+            type="password" 
+            class="w-full rounded-md bg-white/10 border border-white/20 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-bj-green" 
+            required
+            placeholder="••••••••"
+          />
+        </div>
+
+        <div>
+          <label class="block text-sm mb-1" for="confirm_password">Confirmar contraseña</label>
+          <input 
+            id="confirm_password" 
+            name="confirm_password" 
+            type="password" 
+            class="w-full rounded-md bg-white/10 border border-white/20 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-bj-green" 
+            required
+            placeholder="••••••••"
+          />
+        </div>
+
+        <label class="flex items-center gap-2 text-sm">
+          <input id="accept_terms" name="accept_terms" type="checkbox" required />
+          <span>Acepto los términos y condiciones</span>
+        </label>
+
+        <div id="message" class="text-sm text-red-500 hidden"></div>
+
+        <button 
+          type="submit" 
+          class="w-full bg-bj-green hover:bg-green-600 transition-colors text-black font-semibold rounded-md px-3 py-2 flex items-center justify-center"
+        >
+          <span>Crear cuenta</span>
+          <div role="status" class="ml-2 hidden">
+            <svg class="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+          </div>
+        </button>
+      </form>
+
+      <p class="mt-6 text-sm text-bj-gray">¿Ya tienes cuenta? <a href="/login" class="underline hover:text-white">Inicia sesión</a></p>
+    </section>
+  </main>
+</Layout>
+
+<script>
+  import { signUp } from "../lib/auth";
+
+  const form = document.getElementById('registerForm') as HTMLFormElement;
+  const message = document.getElementById('message') as HTMLDivElement;
+  const submitButton = form?.querySelector('button[type="submit"]') as HTMLButtonElement;
+  const spinner = submitButton?.querySelector('[role="status"]') as HTMLDivElement;
+
+  function showLoading(loading: boolean) {
+    if (loading) {
+      submitButton.disabled = true;
+      spinner.classList.remove('hidden');
+      submitButton.querySelector('span')!.textContent = 'Creando cuenta...';
+    } else {
+      submitButton.disabled = false;
+      spinner.classList.add('hidden');
+      submitButton.querySelector('span')!.textContent = 'Crear cuenta';
+    }
+  }
+
+  function showError(text: string) {
+    message.textContent = text;
+    message.classList.remove('hidden');
+  }
+
+  function hideError() {
+    message.textContent = '';
+    message.classList.add('hidden');
+  }
+
+  form?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    hideError();
+    showLoading(true);
+
+    try {
+      const fd = new FormData(form);
+      const email = String(fd.get('email') || '').trim();
+      const password = String(fd.get('password') || '');
+      const confirmPassword = String(fd.get('confirm_password') || '');
+      const username = String(fd.get('username') || '').trim();
+      const firstName = String(fd.get('first_name') || '').trim();
+      const lastName = String(fd.get('last_name') || '').trim();
+      const acceptTerms = fd.get('accept_terms') === 'on';
+
+      // Validaciones
+      if (!acceptTerms) {
+        throw new Error('Debes aceptar los términos y condiciones');
+      }
+
+      if (!email || !password || !confirmPassword || !username) {
+        throw new Error('Por favor completa todos los campos requeridos');
+      }
+
+      if (password !== confirmPassword) {
+        throw new Error('Las contraseñas no coinciden');
+      }
+
+      if (password.length < 6) {
+        throw new Error('La contraseña debe tener al menos 6 caracteres');
+      }
+
+      const { data, error } = await signUp(email, password, {
+        username,
+        first_name: firstName,
+        last_name: lastName
+      });
+
+      if (error) throw error;
+
+      // Registro exitoso
+      message.textContent = 'Cuenta creada correctamente. Redirigiendo...';
+      message.classList.remove('hidden', 'text-red-500');
+      message.classList.add('text-green-500');
+
+      // Redirigir al login después de un breve delay
+      setTimeout(() => {
+        window.location.href = '/login';
+      }, 2000);
+
+    } catch (err: any) {
+      showError(err?.message || 'No se pudo crear la cuenta');
+    } finally {
+      showLoading(false);
+    }
+  });
+</script>

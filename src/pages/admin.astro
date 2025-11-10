@@ -1,0 +1,517 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+<Layout>
+  <main class="min-h-screen bg-gradient-to-br from-bj-green to-bj-black text-bj-white p-6">
+    <header class="flex items-center justify-between max-w-6xl mx-auto">
+      <h1 class="text-2xl font-semibold">Panel de Administración</h1>
+      <nav class="flex gap-3 items-center">
+        <a href="/blackjack-counter" target="_blank" class="bg-green-600 hover:bg-green-700 border border-green-500 rounded-md px-3 py-2 font-semibold">🃏 Contador Blackjack</a>
+        <a href="/dashboard" class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-md px-3 py-2">Dashboard usuario</a>
+        <button id="logout" class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-md px-3 py-2">Salir</button>
+      </nav>
+    </header>
+
+    <section class="mt-8 max-w-6xl mx-auto grid gap-6">
+      <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-6">
+        <h2 class="text-xl mb-3">Invitar usuario por email</h2>
+        <form id="invite-user" class="grid grid-cols-1 md:grid-cols-4 gap-2 items-center">
+          <input id="invite-email" type="email" placeholder="email@dominio.com" class="px-3 py-2 rounded-md bg-white/10 border border-white/20 w-full" />
+          <select id="invite-role" class="px-3 py-2 rounded-md bg-white/10 border border-white/20 w-full">
+            <option value="user">user</option>
+            <option value="admin">admin</option>
+          </select>
+          <select id="invite-ws" multiple size="3" class="px-3 py-2 rounded-md bg-white/10 border border-white/20 w-full"></select>
+          <button class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-md px-3 py-2" type="submit">Invitar y preasignar</button>
+        </form>
+        <p class="text-xs text-bj-gray mt-2">Si está configurada la Edge Function, se preasigna rol y workspaces; de lo contrario se envía enlace mágico estándar.</p>
+      </div>
+      <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-6">
+        <h2 class="text-xl mb-2">Estado</h2>
+        <p id="status" class="text-sm text-bj-white/80">Comprobando permisos…</p>
+        <p class="text-xs text-bj-gray mt-2">Nota: operaciones sobre cuentas (cambiar email, borrar usuario de auth) requieren Service Role y deben hacerse vía Edge Functions o desde el panel de Supabase.</p>
+      </div>
+
+      <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-6">
+        <h2 class="text-xl mb-4">Usuarios (tabla profiles)</h2>
+        <form id="user-filter" class="flex gap-2 mb-3">
+          <input id="search" placeholder="Buscar por email o username" class="px-3 py-2 rounded-md bg-white/10 border border-white/20 w-64" />
+          <button class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-md px-3 py-2" type="submit">Buscar</button>
+        </form>
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-bj-white/70">
+              <th>Email</th>
+              <th>Username</th>
+              <th>Nombre</th>
+              <th>Apellido</th>
+              <th>Rol</th>
+              <th>Membresías</th>
+              <th>Asignar a Workspaces</th>
+              <th class="text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="users"></tbody>
+        </table>
+      </div>
+
+      <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-6">
+        <h2 class="text-xl mb-4">Workspaces</h2>
+        <form id="create-workspace" class="flex gap-2 mb-3">
+          <input id="ws-name" placeholder="Nombre del workspace" class="px-3 py-2 rounded-md bg-white/10 border border-white/20 w-64" />
+          <label class="flex items-center gap-2 text-sm"><input id="ws-principal" type="checkbox" /> Principal</label>
+          <button class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-md px-3 py-2" type="submit">Crear</button>
+        </form>
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-bj-white/70">
+              <th>Nombre</th>
+              <th>Propietario</th>
+              <th>Principal</th>
+              <th class="text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="workspaces"></tbody>
+        </table>
+      </div>
+
+      <!-- Proyectos -->
+      <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-6">
+        <h2 class="text-xl mb-4">Proyectos</h2>
+        <form id="create-project" class="flex gap-2 mb-3">
+          <input id="proj-name" placeholder="Nombre del proyecto" class="px-3 py-2 rounded-md bg-white/10 border border-white/20 w-64" />
+          <select id="proj-ws" class="px-3 py-2 rounded-md bg-white/10 border border-white/20 w-64"></select>
+          <button class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-md px-3 py-2" type="submit">Crear</button>
+        </form>
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="text-left text-bj-white/70">
+              <th>Nombre</th>
+              <th>Workspace</th>
+              <th class="text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="projects"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+</Layout>
+
+<script>
+  import { getSupabase } from "../lib/supabaseClient";
+  const supabase = getSupabase(true);
+  let workspacesCache: Array<{ id: string; name: string; is_principal?: boolean; owner_id?: string }> = [];
+
+  async function ensureSession() {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        window.location.href = '/login';
+        return null;
+      }
+      return session;
+    } catch (error) {
+      console.error('Error al obtener sesión:', error);
+      // Si el error es por refresh token inválido, limpiar y cerrar sesión
+      const msg = (error as any)?.message || '';
+      if (msg.includes('Invalid Refresh Token')) {
+        try { await supabase.auth.signOut(); } catch {}
+        try {
+          // Borrar posibles claves sb-* almacenadas por supabase
+          Object.keys(localStorage).forEach(k => { if (k.startsWith('sb-') && k.endsWith('-auth-token')) localStorage.removeItem(k); });
+        } catch {}
+      }
+      // Redirigir al login
+      window.location.href = '/login';
+      return null;
+    }
+  }
+
+  async function isAdmin(userId: string) {
+    try {
+      // Preferir RPC para evitar RLS recursiva. Si falla, considerar "no admin" temporalmente.
+      const { data: rpcResult, error: rpcError } = await supabase.rpc('is_admin');
+      if (rpcError) {
+        console.warn('RPC is_admin no disponible:', rpcError.message);
+        return false; // No hacer fallback a profiles para evitar 42P17 mientras se corrigen las políticas
+      }
+      return !!rpcResult;
+    } catch (error) {
+      console.error('Error al verificar rol de admin:', error);
+      return false;
+    }
+  }
+
+  async function renderMemberships(userId: string) {
+    const cell = document.getElementById(`m-${userId}`) as HTMLElement | null;
+    if (!cell) return;
+    cell.textContent = 'Cargando...';
+    const { data, error } = await supabase
+      .from('workspace_members')
+      .select('workspace_id, role, workspaces(name)')
+      .eq('user_id', userId);
+    if (error) { cell.textContent = 'Error al cargar'; return; }
+    if (!data || data.length === 0) { cell.textContent = '—'; return; }
+    cell.innerHTML = '';
+    (data as any[]).forEach((m: any) => {
+      const badge = document.createElement('span');
+      badge.className = 'inline-flex items-center gap-2 bg-white/10 border border-white/20 rounded-md px-2 py-1 mr-2 mb-2';
+      badge.innerHTML = `<span>${m.workspaces?.name || m.workspace_id} · ${m.role}</span>
+        <button class="text-xs px-2 py-1 bg-white/10 border border-white/20 rounded" data-remove-membership="${userId}:${m.workspace_id}">Quitar</button>`;
+      cell.appendChild(badge);
+    });
+
+    cell.querySelectorAll('[data-remove-membership]').forEach(btn => btn.addEventListener('click', async (e) => {
+      const target = e.currentTarget as HTMLElement;
+      const key = target.getAttribute('data-remove-membership') || '';
+      const [uid, wid] = key.split(':');
+      if (!uid || !wid) return;
+      if (!confirm('¿Quitar del workspace?')) return;
+      const { error } = await supabase.from('workspace_members').delete().eq('user_id', uid).eq('workspace_id', wid);
+      if (error) return alert('Error al quitar: ' + (error.message || ''));
+      renderMemberships(uid);
+    }));
+  }
+
+  async function listUsers(query: string) {
+    let req = supabase.from('profiles').select('id,email,username,first_name,last_name,role').order('email');
+    if (query) {
+      req = req.or(`email.ilike.%${query}%,username.ilike.%${query}%`);
+    }
+    const { data, error } = await req;
+    if (error) { console.error(error); return; }
+    const tbody = document.getElementById('users') as HTMLTableSectionElement | null;
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    (data || []).forEach(u => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${u.email || ''}</td>
+        <td>${u.username || ''}</td>
+        <td>${u.first_name || ''}</td>
+        <td>${u.last_name || ''}</td>
+        <td>
+          <select class="px-2 py-1 rounded-md bg-white/10 border border-white/20" data-role="${u.id}">
+            <option value="user" ${u.role !== 'admin' ? 'selected' : ''}>user</option>
+            <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>admin</option>
+          </select>
+          <button class="px-2 py-1 bg-white/10 border border-white/20 rounded-md ml-2" data-save-role="${u.id}">Guardar</button>
+        </td>
+        <td id="m-${u.id}" class="text-sm"></td>
+        <td>
+          <div class="flex items-center gap-2">
+            <select multiple size="3" class="px-2 py-1 rounded-md bg-white/10 border border-white/20" data-ws="${u.id}">
+              ${workspacesCache.map(ws => `<option value="${ws.id}">${ws.name}</option>`).join('')}
+            </select>
+            <select class="px-2 py-1 rounded-md bg-white/10 border border-white/20" data-ws-role="${u.id}">
+              <option value="member" selected>member</option>
+              <option value="admin">admin</option>
+            </select>
+            <button class="px-2 py-1 bg-white/10 border border-white/20 rounded-md" data-assign="${u.id}">Asignar varios</button>
+          </div>
+        </td>
+        <td class="text-right">
+          <button class="px-2 py-1 bg-white/10 border border-white/20 rounded-md" data-edit="${u.id}">Editar</button>
+          <button class="px-2 py-1 bg-white/10 border border-white/20 rounded-md ml-2" data-delete="${u.id}">Borrar</button>
+          <button class="px-2 py-1 bg-white/10 border border-white/20 rounded-md ml-2" data-reset="${u.email}">Reset pass (email)</button>
+        </td>`;
+      tbody.appendChild(tr);
+      renderMemberships(u.id);
+    });
+
+    // Guardar rol
+    tbody.querySelectorAll('[data-save-role]').forEach(btn => btn.addEventListener('click', async (e) => {
+      const id = (e.currentTarget as HTMLElement).getAttribute('data-save-role');
+      if (!id) return;
+      const select = tbody.querySelector(`[data-role="${id}"]`) as HTMLSelectElement | null;
+      const role = select?.value || 'user';
+      const { error } = await supabase.from('profiles').update({ role }).eq('id', id);
+      if (error) return alert('Error al actualizar rol: ' + (error.message || ''));
+      alert('Rol actualizado');
+      listUsers(((document.getElementById('search') as HTMLInputElement)?.value) || '');
+    }));
+
+    // Asignar a workspace
+    tbody.querySelectorAll('[data-assign]').forEach(btn => btn.addEventListener('click', async (e) => {
+      const id = (e.currentTarget as HTMLElement).getAttribute('data-assign');
+      if (!id) return;
+      const wsSelect = tbody.querySelector(`[data-ws="${id}"]`) as HTMLSelectElement | null;
+      const roleSelect = tbody.querySelector(`[data-ws-role="${id}"]`) as HTMLSelectElement | null;
+      const role = roleSelect?.value || 'member';
+      const selected = Array.from(wsSelect?.selectedOptions || []).map((o: HTMLOptionElement) => o.value);
+      if (!selected.length) return alert('Selecciona al menos un workspace');
+      // Upsert en bloque
+      const rows = selected.map(workspace_id => ({ workspace_id, user_id: id, role }));
+      // Asegurar que actualiza el rol si la membresía ya existe
+      const { error } = await supabase
+        .from('workspace_members')
+        .upsert(rows, { onConflict: 'workspace_id,user_id' });
+      if (error) return alert('Error al asignar: ' + (error.message || ''));
+      alert('Usuario asignado a los workspaces seleccionados');
+      renderMemberships(id);
+    }));
+
+    tbody.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', async (e) => {
+      const id = (e.currentTarget as HTMLElement).getAttribute('data-edit');
+      if (!id) return;
+      const first = prompt('Nuevo nombre (first_name):');
+      const last = prompt('Nuevo apellido (last_name):');
+      if (first == null && last == null) return;
+      const { error } = await supabase.from('profiles').update({ first_name: first || undefined, last_name: last || undefined }).eq('id', id);
+      if (error) return alert('Error al actualizar: ' + (error.message || ''));
+      listUsers(((document.getElementById('search') as HTMLInputElement)?.value) || '');
+    }))
+
+    tbody.querySelectorAll('[data-delete]').forEach(btn => btn.addEventListener('click', async (e) => {
+      const id = (e.currentTarget as HTMLElement).getAttribute('data-delete');
+      if (!id) return;
+      if (!confirm('¿Borrar perfil? No elimina la cuenta de auth.')) return;
+      const { error } = await supabase.from('profiles').delete().eq('id', id);
+      if (error) return alert('Error al borrar: ' + (error.message || ''));
+      listUsers(((document.getElementById('search') as HTMLInputElement)?.value) || '');
+    }))
+
+    tbody.querySelectorAll('[data-reset]').forEach(btn => btn.addEventListener('click', async (e) => {
+      const email = (e.currentTarget as HTMLElement).getAttribute('data-reset');
+      if (!email) return alert('Email inválido');
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email);
+      if (error) return alert('Error al enviar reset: ' + (error.message || ''));
+      alert('Email de recuperación enviado (si la configuración de Supabase está correcta).');
+    }))
+  }
+
+  async function listWorkspaces() {
+    const { data, error } = await supabase.from('workspaces').select('id,name,is_principal,owner_id').order('created_at',{ascending:false});
+    if (error) { console.error(error); return; }
+    workspacesCache = data || [];
+    // Poblar el selector de invitación
+    const inviteWs = document.getElementById('invite-ws') as HTMLSelectElement | null;
+    if (inviteWs) {
+      inviteWs.innerHTML = '';
+      workspacesCache.forEach(ws => {
+        const opt = document.createElement('option');
+        opt.value = ws.id;
+        opt.textContent = ws.name;
+        inviteWs.appendChild(opt);
+      });
+    }
+    // Poblar selector de workspace para proyectos
+    const projWs = document.getElementById('proj-ws') as HTMLSelectElement | null;
+    if (projWs) {
+      projWs.innerHTML = '';
+      workspacesCache.forEach(ws => {
+        const opt = document.createElement('option');
+        opt.value = ws.id;
+        opt.textContent = ws.name;
+        projWs.appendChild(opt);
+      });
+    }
+    const tbody = document.getElementById('workspaces') as HTMLTableSectionElement;
+    tbody.innerHTML = '';
+    (data || []).forEach(ws => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${ws.name}</td>
+        <td class="text-bj-gray">${ws.owner_id || '-'}</td>
+        <td>${ws.is_principal ? 'Sí' : 'No'}</td>
+        <td class="text-right">
+          <button class="px-2 py-1 bg-white/10 border border-white/20 rounded-md" data-add-member="${ws.id}">Añadir miembro</button>
+          <button class="px-2 py-1 bg-white/10 border border-white/20 rounded-md ml-2" data-delete-ws="${ws.id}">Borrar</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+
+    tbody.querySelectorAll('[data-add-member]').forEach(btn => btn.addEventListener('click', async (e) => {
+      const wsId = (e.currentTarget as HTMLElement).getAttribute('data-add-member');
+      if (!wsId) return;
+      const userId = prompt('ID del usuario a añadir:');
+      const role = prompt('Rol del miembro (admin, member):','member');
+      if (!userId) return;
+      const { error } = await supabase.from('workspace_members').insert({ workspace_id: wsId, user_id: userId, role: role || 'member' });
+      if (error) return alert('Error al añadir miembro: ' + (error.message || ''));
+      alert('Miembro añadido');
+    }))
+
+    tbody.querySelectorAll('[data-delete-ws]').forEach(btn => btn.addEventListener('click', async (e) => {
+      const wsId = (e.currentTarget as HTMLElement).getAttribute('data-delete-ws');
+      if (!wsId) return;
+      if (!confirm('¿Borrar workspace?')) return;
+      // Borrado sencillo (puede fallar por FK si hay relaciones)
+      const { error } = await supabase.from('workspaces').delete().eq('id', wsId);
+      if (error) return alert('Error al borrar: ' + (error.message || ''));
+      listWorkspaces();
+    }))
+  }
+
+  async function listProjects() {
+    const { data, error } = await supabase
+      .from('projects')
+      .select('id,name,workspace_id,workspaces(name)')
+      .order('created_at', { ascending: false });
+    if (error) { console.error('Error al listar proyectos:', error); return; }
+    const tbody = document.getElementById('projects') as HTMLTableSectionElement | null;
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    (data || []).forEach(p => {
+      const tr = document.createElement('tr');
+      tr.setAttribute('data-row', p.id);
+      tr.innerHTML = `
+        <td data-name="${p.id}">${p.name}</td>
+        <td class="text-bj-gray">${(p as any).workspaces?.name || p.workspace_id}</td>
+        <td class="text-right" data-actions="${p.id}">
+          <button class="px-2 py-1 bg-white/10 border border-white/20 rounded-md mr-2" data-edit-project="${p.id}" data-current-name="${p.name}">Editar</button>
+          <button class="px-2 py-1 bg-white/10 border border-white/20 rounded-md" data-delete-project="${p.id}">Borrar</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+
+    // Editar proyecto (cambiar nombre) inline
+    tbody.querySelectorAll('[data-edit-project]').forEach(btn => btn.addEventListener('click', async (e) => {
+      const el = (e.currentTarget as HTMLElement);
+      const id = el.getAttribute('data-edit-project');
+      const current = el.getAttribute('data-current-name') || '';
+      if (!id) return;
+      const nameCell = tbody.querySelector(`[data-name="${id}"]`) as HTMLElement | null;
+      const actionsCell = tbody.querySelector(`[data-actions="${id}"]`) as HTMLElement | null;
+      if (!nameCell || !actionsCell) return;
+      nameCell.innerHTML = `<input data-edit-input="${id}" value="${current}" class="px-2 py-1 rounded-md bg-white/10 border border-white/20 w-full" />`;
+      actionsCell.innerHTML = `
+        <button class="px-2 py-1 bg-white/10 border border-white/20 rounded-md mr-2" data-save-project-name="${id}">Guardar</button>
+        <button class="px-2 py-1 bg-white/10 border border-white/20 rounded-md" data-cancel-edit="${id}">Cancelar</button>`;
+
+      actionsCell.querySelector(`[data-save-project-name="${id}"]`)?.addEventListener('click', async () => {
+        const input = tbody.querySelector(`[data-edit-input="${id}"]`) as HTMLInputElement | null;
+        const trimmed = (input?.value || '').trim();
+        if (!trimmed) return alert('El nombre no puede estar vacío');
+        const { error } = await supabase.from('projects').update({ name: trimmed }).eq('id', id);
+        if (error) return alert('Error al actualizar proyecto: ' + (error.message || ''));
+        listProjects();
+      });
+      actionsCell.querySelector(`[data-cancel-edit="${id}"]`)?.addEventListener('click', () => {
+        listProjects();
+      });
+    }));
+
+    tbody.querySelectorAll('[data-delete-project]').forEach(btn => btn.addEventListener('click', async (e) => {
+      const id = (e.currentTarget as HTMLElement).getAttribute('data-delete-project');
+      if (!id) return;
+      if (!confirm('¿Borrar proyecto?')) return;
+      const { error } = await supabase.from('projects').delete().eq('id', id);
+      if (error) return alert('Error al borrar proyecto: ' + (error.message || ''));
+      listProjects();
+    }));
+  }
+
+  document.getElementById('logout')?.addEventListener('click', async () => {
+    await supabase.auth.signOut();
+    window.location.href = '/login';
+  });
+
+  document.getElementById('user-filter')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await listUsers(((document.getElementById('search') as HTMLInputElement)?.value) || '');
+  });
+
+  document.getElementById('create-workspace')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = (document.getElementById('ws-name') as HTMLInputElement).value?.trim();
+    const principal = (document.getElementById('ws-principal') as HTMLInputElement).checked;
+    if (!name) return alert('Nombre requerido');
+    const { error } = await supabase.from('workspaces').insert({ name, is_principal: principal });
+    if (error) return alert('Error al crear workspace: ' + (error.message || ''));
+    (document.getElementById('ws-name') as HTMLInputElement).value = '';
+    (document.getElementById('ws-principal') as HTMLInputElement).checked = false;
+    listWorkspaces();
+  });
+
+  document.getElementById('invite-user')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const emailInput = document.getElementById('invite-email') as HTMLInputElement;
+    const roleInput = document.getElementById('invite-role') as HTMLSelectElement;
+    const wsInput = document.getElementById('invite-ws') as HTMLSelectElement;
+    const email = emailInput?.value?.trim();
+    const role = roleInput?.value || 'user';
+    const workspaces = Array.from(wsInput?.selectedOptions || []).map((o: HTMLOptionElement) => ({ workspace_id: o.value, role: 'member' }));
+    if (!email) return alert('Ingresa un email válido');
+
+    const FN_URL = import.meta.env.PUBLIC_FUNCTION_INVITE_ASSIGN_URL;
+    try {
+      if (FN_URL) {
+        const res = await fetch(FN_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, role, workspaces })
+        });
+        const body = await res.json();
+        if (!res.ok) throw new Error(body?.error || 'Error al invitar');
+        alert('Invitación enviada desde Edge Function.');
+      } else {
+        const { error } = await supabase.auth.signInWithOtp({ email, options: { emailRedirectTo: window.location.origin + '/login' } });
+        if (error) throw error;
+        alert('Invitación enviada (enlace mágico).');
+      }
+      emailInput.value = '';
+      wsInput.selectedIndex = -1;
+    } catch (err) {
+      alert((err as any)?.message || 'No se pudo invitar');
+    }
+  });
+
+  document.getElementById('create-project')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = (document.getElementById('proj-name') as HTMLInputElement)?.value?.trim();
+    const wsSel = (document.getElementById('proj-ws') as HTMLSelectElement);
+    const workspace_id = wsSel?.value || '';
+    if (!name) return alert('Nombre del proyecto requerido');
+    if (!workspace_id) return alert('Selecciona un workspace');
+    const { error } = await supabase.from('projects').insert({ name, workspace_id });
+    if (error) return alert('Error al crear proyecto: ' + (error.message || ''));
+    (document.getElementById('proj-name') as HTMLInputElement).value = '';
+    listProjects();
+  });
+
+  // Registro del botón global de guardado: ejecuta acciones comunes si hay cambios
+  (function registerGlobalSave(){
+    const g = (window as any).GlobalSave;
+    if (!g || !g.register) return;
+    g.register(async () => {
+      // Guardar roles de usuarios (clic en botones Guardar de cada fila)
+      const tbody = document.getElementById('users') as HTMLTableSectionElement | null;
+      if (tbody) {
+        tbody.querySelectorAll('[data-save-role]').forEach(btn => (btn as HTMLButtonElement).click());
+        // Asignaciones a workspaces: solo si hay selección
+        tbody.querySelectorAll('[data-assign]').forEach(btn => {
+          const id = (btn as HTMLElement).getAttribute('data-assign');
+          if (!id) return;
+          const wsSelect = tbody.querySelector(`[data-ws="${id}"]`) as HTMLSelectElement | null;
+          if (wsSelect && wsSelect.selectedOptions && wsSelect.selectedOptions.length > 0) {
+            (btn as HTMLButtonElement).click();
+          }
+        });
+      }
+      // Crear workspace si hay nombre pendiente
+      const form = document.getElementById('create-workspace') as HTMLFormElement | null;
+      const nameInput = document.getElementById('ws-name') as HTMLInputElement | null;
+      if (form && nameInput && nameInput.value.trim().length > 0) {
+        form.requestSubmit();
+      }
+    });
+  })();
+
+  (async () => {
+    const session = await ensureSession();
+    if (!session) return;
+    const admin = await isAdmin(session.user.id);
+    const status = document.getElementById('status') as HTMLParagraphElement | null;
+    if (!admin) {
+      if (status) status.textContent = 'No eres administrador. Redirigiendo al dashboard…';
+      setTimeout(() => window.location.href = '/dashboard', 1200);
+      return;
+    }
+    if (status) status.textContent = 'Permisos de administrador confirmados.';
+    await listUsers('');
+    await listWorkspaces();
+    await listProjects();
+  })();
+</script>
