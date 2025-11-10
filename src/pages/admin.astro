@@ -275,7 +275,9 @@ import Layout from "../layouts/Layout.astro";
     tbody.querySelectorAll('[data-reset]').forEach(btn => btn.addEventListener('click', async (e) => {
       const email = (e.currentTarget as HTMLElement).getAttribute('data-reset');
       if (!email) return alert('Email inválido');
-      const { data, error } = await supabase.auth.resetPasswordForEmail(email);
+      // Forzar la URL de redirección al dominio actual (prod o dev)
+      const redirectTo = window.location.origin;
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
       if (error) return alert('Error al enviar reset: ' + (error.message || ''));
       alert('Email de recuperación enviado (si la configuración de Supabase está correcta).');
     }))
