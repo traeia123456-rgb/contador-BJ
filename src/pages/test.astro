@@ -1,5 +1,5 @@
 ---
-import { supabase } from '../lib/supabase';
+import { getSupabase } from '../lib/supabaseClient';
 
 interface TableResult {
   table: string;
@@ -53,9 +53,10 @@ let results: TestResults = {
 
 try {
   if (Astro.request.method === 'POST') {
+    const supabase = getSupabase();
     console.log('Iniciando pruebas de Supabase...');
     console.log('Configuración:', results.supabaseConfig);
-    console.log('Cliente Supabase:', supabase);
+    console.log('Cliente Supabase creado');
 
     // Probar conexión básica usando count exacto (más robusto que pedir un campo 'count')
     console.log('Probando conexión básica...');
