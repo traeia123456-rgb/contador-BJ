@@ -57,6 +57,11 @@ import Layout from "../layouts/Layout.astro";
         <a href="/register" class="underline hover:text-white text-bj-gray">Crear cuenta</a>
       </div>
 
+      <div class="mt-2">
+        <button id="resendConfirm" class="hidden w-full text-sm bg-white/10 hover:bg-white/20 border border-white/20 rounded-md px-3 py-2">Reenviar email de confirmación</button>
+        <div id="resendMsg" class="text-xs mt-2 hidden"></div>
+      </div>
+
       <div id="forgotSection" class="mt-4 hidden">
         <div class="bg-black/40 border border-white/10 rounded-md p-3">
           <p class="text-sm text-bj-gray mb-2">Ingresa tu email (o usuario) y te enviaremos un enlace para crear una nueva contraseña.</p>
@@ -87,6 +92,7 @@ import Layout from "../layouts/Layout.astro";
 
   const site = (import.meta as any).env?.PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
   const redirectTo = String(site || '').replace(/\/$/, '') + '/recover';
+  const confirmRedirect = String(site || '').replace(/\/$/, '') + '/login';
 
   function showLoading(loading: boolean) {
     if (loading) {
@@ -103,6 +109,13 @@ import Layout from "../layouts/Layout.astro";
   function showError(text: string) {
     message.textContent = text;
     message.classList.remove('hidden');
+    // Mostrar botón de reenviar si es el típico error de email sin confirmar
+    const normalized = (text || '').toLowerCase();
+    const showResend = normalized.includes('confirma tu email') || normalized.includes('email not confirmed');
+    const btn = document.getElementById('resendConfirm') as HTMLButtonElement | null;
+    if (btn) {
+      if (showResend) btn.classList.remove('hidden'); else btn.classList.add('hidden');
+    }
   }
 
   function hideError() {
@@ -213,6 +226,33 @@ import Layout from "../layouts/Layout.astro";
       forgotMsg.textContent = err?.message || 'No se pudo enviar el email de recuperación';
       forgotMsg.classList.remove('hidden');
       forgotMsg.classList.add('text-red-500');
+    }
+  });
+
+  // Reenviar email de confirmación (signup)
+  document.getElementById('resendConfirm')?.addEventListener('click', async () => {
+    const msg = document.getElementById('resendMsg') as HTMLDivElement | null;
+    if (msg) { msg.classList.add('hidden'); msg.classList.remove('text-red-500','text-green-500'); }
+    try {
+      const supabase = getSupabase();
+      const identityInput = document.getElementById('identity') as HTMLInputElement | null;
+      const identity = identityInput ? identityInput.value.trim() : '';
+      if (!identity) throw new Error('Ingresa tu email o usuario en el formulario');
+      let email = identity;
+      if (!identity.includes('@')) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('username', identity)
+          .maybeSingle();
+        if (!profile?.email) throw new Error('Usuario no encontrado');
+        email = profile.email;
+      }
+      const { error } = await supabase.auth.resend({ type: 'signup', email, options: { emailRedirectTo: confirmRedirect } });
+      if (error) throw error;
+      if (msg) { msg.textContent = 'Te reenviamos el email de confirmación. Revisa tu bandeja y spam.'; msg.classList.remove('hidden'); msg.classList.add('text-green-500'); }
+    } catch (err: any) {
+      if (msg) { msg.textContent = err?.message || 'No se pudo reenviar el email'; msg.classList.remove('hidden'); msg.classList.add('text-red-500'); }
     }
   });
 </script>
