@@ -37,41 +37,41 @@ import Layout from "../layouts/Layout.astro";
         const { data: { session }, error } = await supabase.auth.getSession();
         if (error) throw error;
         if (!session) {
-          statusEl.textContent = 'Enlace inválido o caducado. Solicita un nuevo email.';
+          statusEl && (statusEl.textContent = 'Enlace inválido o caducado. Solicita un nuevo email.');
           return;
         }
-        statusEl.textContent = 'Enlace verificado. Ingresa tu nueva contraseña.';
-        formEl.classList.remove('hidden');
+        statusEl && (statusEl.textContent = 'Enlace verificado. Ingresa tu nueva contraseña.');
+        formEl?.classList.remove('hidden');
       } catch (e) {
-        statusEl.textContent = 'No fue posible validar el enlace.';
-        errorEl.textContent = (e && e.message) ? e.message : 'Error desconocido';
-        errorEl.classList.remove('hidden');
+        statusEl && (statusEl.textContent = 'No fue posible validar el enlace.');
+        errorEl && (errorEl.textContent = (e as Error)?.message ?? 'Error desconocido');
+        errorEl && errorEl.classList.remove('hidden');
       }
     })();
 
     formEl?.addEventListener('submit', async (ev) => {
       ev.preventDefault();
-      errorEl.classList.add('hidden');
+      errorEl && errorEl.classList.add('hidden');
       const pass = (document.getElementById('password') as HTMLInputElement).value;
       const confirm = (document.getElementById('confirm') as HTMLInputElement).value;
       if (!pass || pass.length < 8) {
-        errorEl.textContent = 'La contraseña debe tener al menos 8 caracteres';
-        errorEl.classList.remove('hidden');
+        errorEl && (errorEl.textContent = 'La contraseña debe tener al menos 8 caracteres');
+        errorEl && errorEl.classList.remove('hidden');
         return;
       }
       if (pass !== confirm) {
-        errorEl.textContent = 'Las contraseñas no coinciden';
-        errorEl.classList.remove('hidden');
+        errorEl && (errorEl.textContent = 'Las contraseñas no coinciden');
+        errorEl && errorEl.classList.remove('hidden');  
         return;
       }
       try {
         const { error } = await supabase.auth.updateUser({ password: pass });
         if (error) throw error;
-        successEl.classList.remove('hidden');
+        successEl && successEl.classList.remove('hidden');
         setTimeout(() => { window.location.href = '/login'; }, 1500);
       } catch (e) {
-        errorEl.textContent = (e && e.message) ? e.message : 'No se pudo actualizar la contraseña';
-        errorEl.classList.remove('hidden');
+        errorEl && (errorEl.textContent = (e as Error)?.message ?? 'No se pudo actualizar la contraseña');
+        errorEl && errorEl.classList.remove('hidden');  
       }
     });
   </script>
