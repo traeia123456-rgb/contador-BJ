@@ -98,6 +98,42 @@ import Layout from "../layouts/Layout.astro";
   </main>
 </Layout>
 
+<!-- Botón de guardado global visible solo en Admin -->
+<button id="global-save" title="Guardar cambios"
+  class="fixed bottom-4 right-4 z-50 px-4 py-2 rounded-md border border-white/20 bg-white/10 hover:bg-white/20 text-white shadow">
+  Guardar
+</button>
+<div id="global-save-toast" class="fixed bottom-20 right-4 hidden px-3 py-2 rounded-md bg-black/70 text-white text-sm shadow"></div>
+
+<script>
+  // Inicializa el gestor GlobalSave y el botón/aviso solo en Admin
+  ;(function(){
+    type GlobalSaveCallback = () => void | Promise<void>;
+    const registry: Set<GlobalSaveCallback> = new Set();
+    const toast = document.getElementById('global-save-toast');
+    function showToast(msg: string){
+      if(!toast) return;
+      toast.textContent = msg;
+      toast.classList.remove('hidden');
+      setTimeout(()=>toast.classList.add('hidden'), 1500);
+    }
+    (window as any).GlobalSave = {
+      register(fn: GlobalSaveCallback){ registry.add(fn); return fn; },
+      unregister(fn: GlobalSaveCallback){ registry.delete(fn); },
+      async saveAll(){
+        showToast('Guardando…');
+        for (const fn of Array.from(registry)) {
+          try { await fn(); } catch(e){ console.warn('GlobalSave callback error:', e); }
+        }
+        showToast('Cambios guardados');
+      }
+    };
+    document.getElementById('global-save')?.addEventListener('click', ()=>{
+      (window as any).GlobalSave.saveAll();
+    });
+  })();
+</script>
+
 <script>
   import { getSupabase } from "../lib/supabaseClient";
   const supabase = getSupabase(true);

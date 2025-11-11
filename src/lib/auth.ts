@@ -49,14 +49,11 @@ export async function signUp(email: string, password: string, metadata?: {
     }
 
     // Intentar crear el usuario
-    const site = (import.meta as any).env?.PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
-    const redirectTo = String(site || '').replace(/\/$/, '') + '/login';
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: metadata,
-        emailRedirectTo: redirectTo
+        data: metadata
       }
     })
 

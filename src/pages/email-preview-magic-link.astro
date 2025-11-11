@@ -89,8 +89,9 @@ const html = `<!DOCTYPE html>
     </div>
     <script>
       const btn = document.getElementById('copyBtn');
-      const txt = document.getElementById('codeBox').textContent;
-      btn.addEventListener('click', () => {
+      const codeBox = document.getElementById('codeBox');
+      const txt = codeBox ? codeBox.textContent : '';
+      if (btn) btn.addEventListener('click', () => {
         navigator.clipboard.writeText(txt).then(() => {
           btn.textContent = '¡Copiado!';
           setTimeout(() => (btn.textContent = 'Copiar HTML'), 1200);

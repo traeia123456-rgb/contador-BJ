@@ -1,4 +1,4 @@
-import { getSupabase } from './supabaseClient';
+import { supabase } from './supabase';
 
 interface TestResult {
   success: boolean;
@@ -8,7 +8,6 @@ interface TestResult {
 
 export async function testConnection(): Promise<TestResult> {
   try {
-    const supabase = getSupabase();
     const { data, error } = await supabase.from('profiles').select('count').single();
     if (error) throw error;
     return { success: true, message: 'Conexión exitosa con Supabase' };
@@ -26,7 +25,6 @@ export async function testUserRegistration(): Promise<TestResult> {
   const testPassword = 'test123456';
   
   try {
-    const supabase = getSupabase();
     // 1. Registrar usuario
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: testEmail,
@@ -93,7 +91,6 @@ export async function testUserRegistration(): Promise<TestResult> {
 
 export async function testSecurityPolicies(): Promise<TestResult> {
   try {
-    const supabase = getSupabase();
     // 1. Intentar acceder a perfiles sin autenticación
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')

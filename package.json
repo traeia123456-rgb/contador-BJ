@@ -13,11 +13,11 @@
     "@supabase/supabase-js": "^2.78.0",
     "@tailwindcss/vite": "^4.1.16",
     "astro": "5.15.2",
-    "tailwindcss": "^4.1.16",
     "jszip": "3.10.1",
+    "tailwindcss": "^4.1.16",
+    "xlsx": "^0.18.5",
     "zod": "^3.25.76"
-  }
-  ,
+  },
   "overrides": {
     "jszip": "3.10.1"
   }

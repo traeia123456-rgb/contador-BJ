@@ -119,6 +119,11 @@ import Layout from "../layouts/Layout.astro";
       </div>
     </div>
 
+    <!-- Botón Guardar registro (flotante) -->
+    <button id="btn-save-counter" class="fixed bottom-6 right-6 px-4 py-2 rounded-md border border-white/20 bg-white/10 hover:bg-white/20 shadow-lg">
+      Guardar registro
+    </button>
+
     <!-- Voice Commands Help Modal -->
     <div id="voiceHelpModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
       <div class="bg-gray-800 rounded-lg p-6 max-w-md mx-4 border border-gray-600">
@@ -223,6 +228,8 @@ import Layout from "../layouts/Layout.astro";
 
 <script>
   // @ts-nocheck
+  import { getSupabase } from "../lib/supabaseClient";
+  const supabase = getSupabase(true);
   // VoiceCommands Class Integration
   class VoiceCommands {
     constructor() {
@@ -681,6 +688,48 @@ import Layout from "../layouts/Layout.astro";
     updateRemainingCards();
   };
 
+  // Serializar estado actual del contador
+  function serializeCounter(){
+    const trueCountEl = document.getElementById('trueCount');
+    return {
+      deck_count: deckCount,
+      running_count: runningCount,
+      true_count: Number((trueCountEl?.textContent || '0').toString().replace(',', '.')) || 0,
+      cards_played: cardsPlayed,
+      cards_remaining: totalCards - cardsPlayed,
+      total_cards: totalCards,
+      timestamp: new Date().toISOString()
+    } as any;
+  }
+
+  // Guardar snapshot en Supabase
+  async function saveCounterSnapshot(){
+    try{
+      const { data: sessionRes } = await supabase.auth.getSession();
+      const userId = sessionRes?.session?.user?.id ?? null;
+      if (!userId){
+        alert('Debes iniciar sesión para guardar.');
+        window.location.href = '/login';
+        return;
+      }
+
+      const payload = serializeCounter();
+      const now = new Date();
+      const dateStr = now.toLocaleDateString('es-ES');
+      const timeStr = now.toLocaleTimeString('es-ES', {hour: '2-digit', minute: '2-digit'});
+      (payload as any).snapshot_name = `Contador Blackjack - ${dateStr} ${timeStr}`;
+
+      const insertData: any = { data: payload, created_at: now.toISOString(), workspace_id: null, project_id: null };
+      insertData.user_id = userId;
+      const { error } = await supabase.from('bj_snapshots').insert(insertData);
+      if (error) throw error;
+      alert('Registro guardado correctamente.');
+    }catch(e:any){
+      console.error('Error al guardar registro:', e);
+      alert('Error al guardar: ' + (e?.message ?? e));
+    }
+  }
+
   // Initialize everything when DOM is loaded
   document.addEventListener('DOMContentLoaded', function() {
     // Initialize voice commands
@@ -707,5 +756,8 @@ import Layout from "../layouts/Layout.astro";
       sixDeckBtn.style.color = 'white';
       sixDeckBtn.style.transform = 'scale(1.05)';
     }
+
+    // Conectar botón Guardar
+    document.getElementById('btn-save-counter')?.addEventListener('click', saveCounterSnapshot);
   });
 </script>

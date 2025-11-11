@@ -7,10 +7,26 @@ import Layout from "../layouts/Layout.astro";
       <h1 class="text-2xl font-semibold">Dashboard</h1>
       <div class="flex items-center gap-2">
         <a href="/blackjack-counter" target="_blank" class="bg-green-600 hover:bg-green-700 border border-green-500 rounded-md px-3 py-2 font-semibold">🃏 Contador Blackjack</a>
+        <button id="open-create-project" class="hidden bg-white/10 hover:bg-white/20 border border-white/20 rounded-md px-3 py-2">Crear proyecto</button>
         <a id="admin-link" href="/admin" class="hidden bg-white/10 hover:bg-white/20 border border-white/20 rounded-md px-3 py-2">Admin</a>
         <button id="logout" class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-md px-3 py-2">Salir</button>
       </div>
     </header>
+    <!-- Módulo de creación de proyecto (solo usuarios) -->
+    <section id="user-create-project" class="hidden max-w-6xl mx-auto mt-4">
+      <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-6">
+        <div class="flex items-start justify-between mb-4">
+          <h2 class="text-xl">Crear proyecto</h2>
+          <button id="close-user-create-project" class="px-2 py-1 bg-white/10 hover:bg-white/20 border border-white/20 rounded-md">Cerrar</button>
+        </div>
+        <form id="user-create-project-form" class="flex flex-col md:flex-row gap-2 mb-3">
+          <input id="user-proj-name" placeholder="Nombre del proyecto" class="px-3 py-2 rounded-md bg-white/10 border border-white/20 md:w-64" />
+          <select id="user-proj-ws" class="px-3 py-2 rounded-md bg-white/10 border border-white/20 md:w-64"></select>
+          <button id="user-proj-submit" class="bg-white/10 hover:bg-white/20 border border-white/20 rounded-md px-3 py-2" type="submit">Crear</button>
+        </form>
+        <p id="user-create-project-note" class="text-sm text-bj-white/70"></p>
+      </div>
+    </section>
     <!-- Indicador de edición de snapshot -->
     <div id="editing-indicator" class="max-w-6xl mx-auto mt-3 hidden">
       <div class="flex items-center gap-3 bg-yellow-500/10 border border-yellow-400/30 text-yellow-300 rounded-md px-3 py-2">
@@ -80,8 +96,18 @@ import Layout from "../layouts/Layout.astro";
                 <select id="project-select" class="w-full px-2 py-1 rounded-md bg-white/10 border border-white/20 text-sm"></select>
               </div>
             </div>
-            <div class="flex justify-center mt-2">
+            <div class="flex justify-center mt-2 gap-2">
               <button id="btn-save" class="px-4 py-2 rounded-md border border-white/20 bg-white/10 hover:bg-white/20">GUARDAR</button>
+            </div>
+            <!-- CTA persistente para solicitar acceso a workspace cuando no hay membresías -->
+            <div id="workspace-cta" class="hidden mt-3">
+              <div class="flex items-start gap-3 bg-yellow-500/10 border border-yellow-400/30 text-yellow-300 rounded-md px-3 py-2">
+                <div class="text-sm">
+                  <p class="m-0">No tienes acceso a ningún workspace. Pide a un administrador que te asigne uno.</p>
+                  <p id="workspace-cta-msg" class="m-0 text-yellow-200/80 text-xs"></p>
+                </div>
+                <a id="workspace-cta-link" target="_blank" class="ml-auto text-xs bg-white/10 hover:bg-white/20 border border-white/20 rounded-md px-2 py-1">Solicitar acceso</a>
+              </div>
             </div>
           </div>
         </div>
@@ -280,6 +306,9 @@ import Layout from "../layouts/Layout.astro";
     
     if (!adminError && isAdmin) {
       document.getElementById('admin-link')?.classList.remove('hidden');
+    } else {
+      // Mostrar botón de crear proyecto para usuarios no administradores
+      document.getElementById('open-create-project')?.classList.remove('hidden');
     }
   })();
 
@@ -287,6 +316,25 @@ import Layout from "../layouts/Layout.astro";
     await supabase.auth.signOut();
     window.location.href = '/login';
   });
+
+  // Carga dinámica de la librería XLSX para exportación a Excel
+  let XLSXMod: any = null;
+  (async () => {
+    try { XLSXMod = await import('xlsx'); }
+    catch(e){ console.error('No se pudo cargar la librería xlsx:', e); }
+  })();
+
+  function readCellValue(el: Element | null): string {
+    if (!el) return '';
+    const input = el.querySelector('input') as HTMLInputElement | null;
+    const select = el.querySelector('select') as HTMLSelectElement | null;
+    if (input) return (input.value || '').trim();
+    if (select) return (select.value || '').trim();
+    return (el.textContent || '').trim();
+  }
+
+  // Recolecta todos los datos mostrados en la interfaz en estructuras simples
+  
 
   async function loadWorkspaces(){
     try {
@@ -324,6 +372,25 @@ import Layout from "../layouts/Layout.astro";
         const sel = document.getElementById('ws-select') as HTMLSelectElement | null;
         if (sel){
           sel.innerHTML = '<option value="">No workspaces available</option>';
+        }
+        // Mostrar CTA persistente para solicitar acceso
+        const cta = document.getElementById('workspace-cta');
+        const ctaLink = document.getElementById('workspace-cta-link') as HTMLAnchorElement | null;
+        const ctaMsg = document.getElementById('workspace-cta-msg') as HTMLParagraphElement | null;
+        const adminEmail = (import.meta as any).env?.PUBLIC_ADMIN_EMAIL || '';
+        if (cta) cta.classList.remove('hidden');
+        if (ctaLink) {
+          if (adminEmail) {
+            const subject = encodeURIComponent('Solicitud de acceso a workspace');
+            const body = encodeURIComponent('Hola,\n\nSoy ' + session.user.email + ' y necesito acceso a un workspace para poder crear proyectos.\n\nGracias.');
+            ctaLink.href = 'mailto:' + adminEmail + '?subject=' + subject + '&body=' + body;
+            ctaLink.classList.remove('hidden');
+          } else {
+            ctaLink.classList.add('hidden');
+          }
+        }
+        if (ctaMsg) {
+          ctaMsg.textContent = adminEmail ? ('Se abrirá tu cliente de correo para escribir a ' + adminEmail + '.') : 'Contacta al administrador por el canal habitual para que te asigne a un workspace.';
         }
         return;
       }
@@ -365,6 +432,9 @@ import Layout from "../layouts/Layout.astro";
           const opt = document.createElement('option'); opt.value = ws.id; opt.textContent = ws.name; sel.appendChild(opt);
         });
       }
+      // Ocultar CTA si hay membresías disponibles
+      const cta = document.getElementById('workspace-cta');
+      if (cta) cta.classList.add('hidden');
     } catch (error) {
       console.error('Error en loadWorkspaces:', error);
       // Don't show alert, just log
@@ -393,6 +463,98 @@ import Layout from "../layouts/Layout.astro";
       console.error('Error en loadProjectsForWorkspace:', error);
     }
   }
+
+  // ------ Módulo de creación de proyecto (solo usuarios) ------
+  async function loadUserWorkspacesForProject(){
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const wsSelect = document.getElementById('user-proj-ws') as HTMLSelectElement | null;
+      const note = document.getElementById('user-create-project-note') as HTMLParagraphElement | null;
+      if (!wsSelect) return;
+      if (!session) {
+        wsSelect.innerHTML = '<option value="">Inicia sesión</option>';
+        if (note) note.textContent = 'Debes iniciar sesión para crear proyectos.';
+        return;
+      }
+
+      const { data: memberships, error: membershipError } = await supabase
+        .from('workspace_members')
+        .select('workspace_id, role')
+        .eq('user_id', session.user.id);
+      if (membershipError) {
+        wsSelect.innerHTML = '<option value="">Error cargando workspaces</option>';
+        if (note) note.textContent = 'Hubo un error al cargar tus workspaces.';
+        return;
+      }
+      if (!memberships || memberships.length === 0) {
+        wsSelect.innerHTML = '<option value="">No hay workspaces disponibles</option>';
+        if (note) note.textContent = 'Para crear proyectos necesitas pertenecer a un workspace. Pide a un admin que te asigne uno.';
+        return;
+      }
+      const workspaceIds = memberships.map(m => m.workspace_id);
+      const { data, error } = await supabase
+        .from('workspaces')
+        .select('id, name')
+        .in('id', workspaceIds)
+        .order('name');
+      if (error) {
+        wsSelect.innerHTML = '<option value="">Error cargando workspaces</option>';
+        if (note) note.textContent = 'No se pudieron cargar tus workspaces.';
+        return;
+      }
+      const list = data || [];
+      if (list.length === 0) {
+        wsSelect.innerHTML = '<option value="">No hay workspaces disponibles</option>';
+        if (note) note.textContent = 'Para crear proyectos necesitas pertenecer a un workspace.';
+        return;
+      }
+      wsSelect.innerHTML = '<option value="">Selecciona un workspace</option>';
+      list.forEach(ws => {
+        const opt = document.createElement('option');
+        opt.value = ws.id; opt.textContent = ws.name; wsSelect.appendChild(opt);
+      });
+      if (note) note.textContent = 'Selecciona un workspace y escribe el nombre del proyecto.';
+    } catch (error) {
+      const wsSelect = document.getElementById('user-proj-ws') as HTMLSelectElement | null;
+      const note = document.getElementById('user-create-project-note') as HTMLParagraphElement | null;
+      if (wsSelect) wsSelect.innerHTML = '<option value="">Error inesperado</option>';
+      if (note) note.textContent = 'Ocurrió un error inesperado al cargar tus workspaces.';
+    }
+  }
+
+  // Abrir/cerrar módulo
+  document.getElementById('open-create-project')?.addEventListener('click', async () => {
+    const sec = document.getElementById('user-create-project');
+    if (!sec) return;
+    sec.classList.remove('hidden');
+    await loadUserWorkspacesForProject();
+  });
+  document.getElementById('close-user-create-project')?.addEventListener('click', () => {
+    const sec = document.getElementById('user-create-project');
+    if (!sec) return;
+    sec.classList.add('hidden');
+  });
+
+  // Submit crear proyecto
+  document.getElementById('user-create-project-form')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const name = (document.getElementById('user-proj-name') as HTMLInputElement)?.value?.trim();
+    const wsSel = (document.getElementById('user-proj-ws') as HTMLSelectElement);
+    const workspace_id = wsSel?.value || '';
+    if (!name) return alert('Nombre del proyecto requerido');
+    if (!workspace_id) return alert('Selecciona un workspace');
+    const { error } = await supabase.from('projects').insert({ name, workspace_id });
+    if (error) return alert('Error al crear proyecto: ' + (error.message || ''));
+    (document.getElementById('user-proj-name') as HTMLInputElement).value = '';
+    alert('Proyecto creado');
+    const sec = document.getElementById('user-create-project');
+    sec?.classList.add('hidden');
+    // actualizar selector de proyectos si coincide con workspace seleccionado
+    const wsSelectMain = document.getElementById('ws-select') as HTMLSelectElement | null;
+    if (wsSelectMain && wsSelectMain.value === workspace_id) {
+      await loadProjectsForWorkspace(workspace_id);
+    }
+  });
 
   // Tabla editable con autocompletado y numeración automática
   const RESULT_COLOR = {
@@ -748,6 +910,7 @@ import Layout from "../layouts/Layout.astro";
 
   document.getElementById('btn-save')?.addEventListener('click', saveSnapshot);
 
+
   // Listado y restauración de snapshots
   async function loadSnapshots(){
     const wsSel = document.getElementById('ws-select') as HTMLSelectElement | null;
@@ -847,205 +1010,40 @@ import Layout from "../layouts/Layout.astro";
   // --- Descarga a Excel usando plantilla XLSM SIN SheetJS (JSZip + OOXML) ---
   async function downloadSnapshotExcel(id: string){
     try {
-      const { data, error } = await supabase.from('bj_snapshots').select('data, created_at').eq('id', id).single();
+      const { data, error } = await supabase.from('bj_snapshots').select('data, created_at, workspace_id, project_id').eq('id', id).single();
       if (error) { console.error(error); alert('Error cargando snapshot'); return; }
       const snap = (data as any)?.data || {};
-      // Límites de seguridad
-      const MAX_ROWS = 500; // máximo de filas a escribir
-      const MAX_STR_LEN = 256; // longitud máxima de cadenas
-      const sanitizeText = (val: string) => (String(val ?? '').trim()).slice(0, MAX_STR_LEN);
 
-      // Cargar plantilla XLSM desde /Plantilla_BJ_FINAL.xlsm (debe estar en public)
-      const resp = await fetch('/Plantilla_BJ_FINAL.xlsm');
-      if (!resp.ok) {
-        alert('No se encontró la plantilla en /Plantilla_BJ_FINAL.xlsm. Coloca el archivo en la carpeta public.');
-        return;
-      }
-      const buf = await resp.arrayBuffer();
-
-      // Cargar JSZip y manipular OOXML
-      const JSZipMod: any = await import('jszip');
-      const JSZip = JSZipMod.default ?? JSZipMod;
-      const zip = await JSZip.loadAsync(buf);
-
-      const parseXML = (t: string) => new DOMParser().parseFromString(t, 'application/xml');
-      const serializeXML = (doc: Document) => new XMLSerializer().serializeToString(doc);
-      const colToNum = (col: string) => col.split('').reduce((n, ch) => n * 26 + (ch.charCodeAt(0) - 64), 0);
-      const numToCol = (n: number) => { let s = ''; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
-      const ref = (c: number, r: number) => `${numToCol(c)}${r}`;
-
-      // Localizar hoja 'ORIGINAL' o primera
-      const workbookXml = await zip.file('xl/workbook.xml')!.async('text');
-      const relsXml = await zip.file('xl/_rels/workbook.xml.rels')!.async('text');
-      const wbDoc = parseXML(workbookXml);
-      const relsDoc = parseXML(relsXml);
-      const sheets = Array.from(wbDoc.getElementsByTagName('sheet'));
-      let targetRelId = sheets.find(s => (s.getAttribute('name')||'').toUpperCase() === 'ORIGINAL')?.getAttribute('r:id');
-      if (!targetRelId && sheets.length) targetRelId = sheets[0].getAttribute('r:id') || '';
-      if (!targetRelId) { alert('No se encontró ninguna hoja en el libro.'); return; }
-      const rel = Array.from(relsDoc.getElementsByTagName('Relationship')).find(r => r.getAttribute('Id') === targetRelId);
-      if (!rel) { alert('No se pudo resolver la hoja en workbook.xml.rels'); return; }
-      const sheetPath = `xl/${rel.getAttribute('Target')}`;
-      const sheetXml = await zip.file(sheetPath)!.async('text');
-      const sheetDoc = parseXML(sheetXml);
-
-      // Resolver sharedStrings para búsqueda de encabezados
-      let sst: string[] = [];
-      if (zip.file('xl/sharedStrings.xml')){
-        const sstXml = await zip.file('xl/sharedStrings.xml')!.async('text');
-        const sstDoc = parseXML(sstXml);
-        sst = Array.from(sstDoc.getElementsByTagName('si')).map(si => {
-          const tNodes = si.getElementsByTagName('t');
-          if (tNodes.length) return tNodes[0].textContent || '';
-          const rNodes = si.getElementsByTagName('r');
-          return Array.from(rNodes).map(rn => rn.getElementsByTagName('t')[0]?.textContent || '').join('');
-        });
-      }
-      const getCellText = (cEl: Element) => {
-        const t = cEl.getAttribute('t');
-        if (t === 's') { const idx = Number(cEl.getElementsByTagName('v')[0]?.textContent || ''); return sst[idx] ?? ''; }
-        if (t === 'inlineStr') { return cEl.getElementsByTagName('t')[0]?.textContent || ''; }
-        const v = cEl.getElementsByTagName('v')[0]?.textContent || '';
-        return v;
-      };
-
-      // Buscar encabezados MANOS / RESULTADO JUGADOR / DILER
-      const sheetData = sheetDoc.getElementsByTagName('sheetData')[0];
-      const rows = Array.from(sheetData.getElementsByTagName('row'));
-      const headers = { MANOS: null as any, RES: null as any, DIL: null as any };
-      for (const row of rows){
-        const rnum = Number(row.getAttribute('r')||'0');
-        const cells = Array.from(row.getElementsByTagName('c'));
-        for (const c of cells){
-          const refAttr = c.getAttribute('r')||'';
-          const m = refAttr.match(/([A-Z]+)(\d+)/); if (!m) continue;
-          const cnum = colToNum(m[1]);
-          const text = (getCellText(c)||'').toUpperCase().trim();
-          if (text === 'MANOS') headers.MANOS = { r: rnum, c: cnum };
-          else if (text === 'RESULTADO JUGADOR') headers.RES = { r: rnum, c: cnum };
-          else if (text === 'DILER') headers.DIL = { r: rnum, c: cnum };
-        }
-      }
-
-      let startRow = 28; let colManos = colToNum('B'); let colRes = colToNum('C'); let colDil = colToNum('D');
-      if (headers.MANOS && headers.RES && headers.DIL && headers.MANOS.r === headers.RES.r && headers.RES.r === headers.DIL.r){
-        startRow = headers.MANOS.r + 1;
-        colManos = headers.MANOS.c; colRes = headers.RES.c; colDil = headers.DIL.c;
-      }
-
-      const handsRaw: Array<{resultado?: string, diler?: string}> = (snap?.pages || []).flat().filter((r: any) => {
-        const res = (r?.resultado || '').trim(); const dil = (r?.diler || '').trim();
-        return res !== '' || dil !== '';
-      });
-      const hands = handsRaw.slice(0, MAX_ROWS);
-
-      // Crear / asegurar filas y escribir datos
-      const ensureRow = (n: number) => {
-        let row = rows.find(r => Number(r.getAttribute('r')) === n);
-        if (!row){
-          row = sheetDoc.createElement('row');
-          row.setAttribute('r', String(n));
-          // insertar manteniendo orden ascendente por r
-          const next = rows.find(r => Number(r.getAttribute('r')) > n);
-          if (next && next.parentNode){ next.parentNode.insertBefore(row, next); }
-          else { sheetData.appendChild(row); }
-          rows.push(row);
-          rows.sort((a,b) => Number(a.getAttribute('r')) - Number(b.getAttribute('r')));
-        }
-        // asegurar spans para las columnas usadas
-        const minC = Math.min(colManos, colRes, colDil);
-        const maxC = Math.max(colManos, colRes, colDil);
-        row.setAttribute('spans', `${minC}:${maxC}`);
-        return row;
-      };
-      const removeCell = (rowEl: Element, cnum: number) => {
-        const cref = ref(cnum, Number(rowEl.getAttribute('r')));
-        const cell = Array.from(rowEl.getElementsByTagName('c')).find(c => c.getAttribute('r') === cref);
-        if (cell) rowEl.removeChild(cell);
-      };
-      const insertCellSorted = (rowEl: Element, cEl: Element) => {
-        const cRef = cEl.getAttribute('r') || '';
-        const m = cRef.match(/([A-Z]+)(\d+)/);
-        const newC = m ? colToNum(m[1]) : 1;
-        const cells = Array.from(rowEl.getElementsByTagName('c'));
-        const next = cells.find(c => {
-          const r = c.getAttribute('r')||''; const mm = r.match(/([A-Z]+)(\d+)/);
-          const cnum = mm ? colToNum(mm[1]) : 1;
-          return cnum > newC;
-        });
-        if (next) rowEl.insertBefore(cEl, next); else rowEl.appendChild(cEl);
-      };
-      const setNum = (rowEl: Element, cnum: number, val: number) => {
-        const cref = ref(cnum, Number(rowEl.getAttribute('r')));
-        // si ya existe, reutilizar
-        const existing = Array.from(rowEl.getElementsByTagName('c')).find(c => c.getAttribute('r') === cref);
-        let cEl = existing ?? sheetDoc.createElement('c');
-        cEl.setAttribute('r', cref);
-        cEl.removeAttribute('t');
-        // limpiar hijos
-        Array.from(cEl.childNodes).forEach(n => cEl.removeChild(n));
-        const vEl = sheetDoc.createElement('v'); vEl.textContent = String(val);
-        cEl.appendChild(vEl);
-        if (!existing) insertCellSorted(rowEl, cEl);
-      };
-      const setStr = (rowEl: Element, cnum: number, val: string) => {
-        const cref = ref(cnum, Number(rowEl.getAttribute('r')));
-        const existing = Array.from(rowEl.getElementsByTagName('c')).find(c => c.getAttribute('r') === cref);
-        let cEl = existing ?? sheetDoc.createElement('c');
-        cEl.setAttribute('r', cref);
-        cEl.setAttribute('t', 'inlineStr');
-        // limpiar hijos
-        Array.from(cEl.childNodes).forEach(n => cEl.removeChild(n));
-        const isEl = sheetDoc.createElement('is'); const tEl = sheetDoc.createElement('t'); tEl.textContent = val;
-        isEl.appendChild(tEl); cEl.appendChild(isEl);
-        if (!existing) insertCellSorted(rowEl, cEl);
-      };
-
-      // Limpiar 200 filas destino y escribir manos
-      for (let i=0;i<200;i++){ const r = ensureRow(startRow + i); removeCell(r, colManos); removeCell(r, colRes); removeCell(r, colDil); }
-      hands.forEach((h, idx) => { const r = ensureRow(startRow + idx); setNum(r, colManos, idx + 1); setStr(r, colRes, sanitizeText(h.resultado || '')); setStr(r, colDil, sanitizeText(h.diler || '')); });
-
-      // Actualizar “CANTIDAD DE MANOS” si existe el encabezado
-      const findQty = () => {
-        for (const row of rows){
-          for (const c of Array.from(row.getElementsByTagName('c'))){
-            const text = (getCellText(c)||'').toUpperCase().trim();
-            if (text === 'CANTIDAD DE MANOS'){
-              const m = (c.getAttribute('r')||'').match(/([A-Z]+)(\d+)/); if (!m) return null;
-              const col = colToNum(m[1]); const rnum = Number(m[2]);
-              return { r: rnum, c: col + 1 };
-            }
-          }
-        }
-        return null;
-      };
-      const qty = findQty();
-      if (qty){ const row = ensureRow(qty.r); removeCell(row, qty.c); setNum(row, qty.c, hands.length); }
-
-      // --- Escribir estadísticas en tablas de la plantilla ---
-      const rowsAll = (snap?.pages || []).flat().filter((r:any) => (r?.resultado||'').trim()!=='' || (r?.diler||'').trim()!=='');
+      // Recalcular estadísticas si no existen
+      // Compatibilidad: algunos snapshots antiguos guardan 'rows' (sin paginar) y otros 'pages'
+      const normalizedRows = (() => {
+        const byPages = Array.isArray(snap?.pages) ? (snap.pages as any[]).flat() : [];
+        const byRows = Array.isArray(snap?.rows) ? (snap.rows as any[]) : [];
+        const base = byPages.length ? byPages : byRows;
+        return base as Array<{resultado?:string,diler?:string}>;
+      })();
+      const rowsAll = normalizedRows.filter((r:any) => (r?.resultado||'').trim()!=='' || (r?.diler||'').trim()!=='');
       const norm = (s:string) => (s||'').trim().toUpperCase();
       const total = rowsAll.length;
-      const pctVal = (n:number) => total>0 ? Math.round((n*1000)/total)/10 : 0; // porcentaje 0..100 con 1 decimal
+      const pctVal = (n:number) => total>0 ? Math.round((n*1000)/total)/10 : 0;
       const stats = snap?.stats ?? (()=>{
-        const wonTotal = rowsAll.filter((r: { resultado: string }) => ['GANE','GANE DOBLADA','DIVIDI GANE','BJ'].includes(norm(r.resultado))).length;
-        const lostTotal = rowsAll.filter((r: { resultado: string }) => ['PERDI','PERDI DOBLADA','DIVIDI PERDI'].includes(norm((r as { resultado: string }).resultado))).length;
+        const wonTotal = rowsAll.filter((r: { resultado?: string }) => ['GANE','GANE DOBLADA','DIVIDI GANE','BJ'].includes(norm(r.resultado || ''))).length;
+        const lostTotal = rowsAll.filter((r: any) => ['PERDI','PERDI DOBLADA','DIVIDI PERDI'].includes(norm(r.resultado))).length;
         const tieTotal = rowsAll.filter((r: any) => norm(r.resultado) === 'EMPATE').length;
-        let streakGanadas=0; for(let i=rowsAll.length-1;i>=0;i--){ const r=norm(rowsAll[i].resultado); if(r.includes('GANE')||r==='BJ') streakGanadas++; else break; }
-        let streakPerdidas=0; for(let i=rowsAll.length-1;i>=0;i--){ const r=norm(rowsAll[i].resultado); if(r.includes('PERDI')) streakPerdidas++; else break; }
+        let streakGanadas=0; for(let i=rowsAll.length-1;i>=0;i--){ const r=norm(rowsAll[i].resultado||''); if(r.includes('GANE')||r==='BJ') streakGanadas++; else break; }
+        let streakPerdidas=0; for(let i=rowsAll.length-1;i>=0;i--){ const r=norm(rowsAll[i].resultado||''); if(r.includes('PERDI')) streakPerdidas++; else break; }
         const sinceLast=(fn:(r:any)=>boolean)=>{ let c=0; for(let i=rowsAll.length-1;i>=0;i--){ if(fn(rowsAll[i])) break; c++; } return c; };
         const sinBJ = sinceLast((r: any) => norm(r.resultado) === 'BJ');
         const ganeDob = sinceLast((r: any) => norm(r.resultado).includes('GANE DOBLADA'));
         const perdiDob = sinceLast((r: any) => norm(r.resultado).includes('PERDI DOBLADA'));
         const divGane = sinceLast((r: any) => norm(r.resultado).includes('DIVIDI GANE'));
         const divPerdi = sinceLast((r: any) => norm(r.resultado).includes('DIVIDI PERDI'));
-        const dVoloTotal = rowsAll.filter((r: { diler: string }) => norm(r.diler) === 'VOLO').length;
-
-        const dNoVoloTotal = rowsAll.filter((r: { diler: string }) => norm(r.diler) === 'NO VOLO').length;
-        const dBjTotal = rowsAll.filter((r: { diler: string }) => norm(r.diler) === 'BJ').length;
-        let dStreakVolo=0; for(let i=rowsAll.length-1;i>=0;i--){ const d=norm(rowsAll[i].diler); if(d==='VOLO') dStreakVolo++; else break; }
-        let dStreakNoVolo=0; for(let i=rowsAll.length-1;i>=0;i--){ const d=norm(rowsAll[i].diler); if(d==='NO VOLO') dStreakNoVolo++; else break; }
-        let dStreakBj=0; for(let i=rowsAll.length-1;i>=0;i--){ const d=norm(rowsAll[i].diler); if(d==='BJ') dStreakBj++; else break; }
+        const dVoloTotal = rowsAll.filter((r: { diler?: string }) => norm(r.diler || '') === 'VOLO').length;
+        const dNoVoloTotal = rowsAll.filter((r: { diler?: string }) => norm(r.diler || '') === 'NO VOLO').length;
+        const dBjTotal = rowsAll.filter((r: { diler?: string }) => norm(r.diler || '') === 'BJ').length;
+        let dStreakVolo=0; for(let i=rowsAll.length-1;i>=0;i--){ const d=norm(rowsAll[i].diler||''); if(d==='VOLO') dStreakVolo++; else break; }
+        let dStreakNoVolo=0; for(let i=rowsAll.length-1;i>=0;i--){ const d=norm(rowsAll[i].diler||''); if(d==='NO VOLO') dStreakNoVolo++; else break; }
+        let dStreakBj=0; for(let i=rowsAll.length-1;i>=0;i--){ const d=norm(rowsAll[i].diler||''); if(d==='BJ') dStreakBj++; else break; }
         return {
           total,
           jugador: {
@@ -1065,112 +1063,121 @@ import Layout from "../layouts/Layout.astro";
         };
       })();
 
-      // Helper: encontrar columnas de un grupo de encabezados en una misma fila
-      const findHeaderGroup = (keys: string[]) => {
-        for(const row of rows){
-          const cells = Array.from(row.getElementsByTagName('c'));
-          const texts = cells.map(c=>({ cnum: colToNum((c.getAttribute('r')||'').match(/([A-Z]+)(\d+)/)?.[1]||'A'), txt: (getCellText(c)||'').toUpperCase().trim() }));
-          const map: Record<string, number> = {};
-          keys.forEach(k=>{
-            const hit = texts.find(t=>t.txt===k.toUpperCase()); if(hit) map[k]=hit.cnum;
-          });
-          if(keys.every(k=>map[k]>0)) return { row: Number(row.getAttribute('r')), cols: map };
-        }
-        return null;
-      };
+      // Preparar hojas estilo interfaz
+      const handsData: any[] = [['MANOS','RESULTADO JUGADOR','DILER']];
+      rowsAll.forEach((h:any, idx:number) => handsData.push([idx+1, (h.resultado||'').trim(), (h.diler||'').trim()]));
 
-      // 1) Tabla PORCENTAJE % del jugador
-      const grpJugador = findHeaderGroup(['ACCION','UNIDAD','%']);
-      if (grpJugador){
-        const colA = grpJugador.cols['ACCION']; const colU = grpJugador.cols['UNIDAD']; const colP = grpJugador.cols['%'];
-        for(const row of rows){
-          const rnum = Number(row.getAttribute('r'));
-          if (rnum <= grpJugador.row) continue;
-          const accionCell = Array.from(row.getElementsByTagName('c')).find(c => c.getAttribute('r') === ref(colA, rnum));
-          const name = accionCell ? (getCellText(accionCell)||'').toUpperCase().trim() : '';
-          if (!name) break; // fin de la tabla
-          if (['GANADAS','PERDIDAS','EMPATE'].includes(name)){
-            const unidad = stats.jugador.porcentajes.unidad[name.toLowerCase() as 'ganadas'|'perdidas'|'empate'];
-            const por = stats.jugador.porcentajes.porcentajes[name.toLowerCase() as 'ganadas'|'perdidas'|'empate'] / 100; // decimal para formato %
-            setNum(row, colU, unidad);
-            setNum(row, colP, por);
-          }
-        }
+      const rachasYM: any[] = [['CANTIDAD DE MANOS', String(rowsAll.length)], ['ULTIMAS RACHAS','CANTIDAD'],
+        ['GANADAS', stats.jugador.rachas.ganadas],
+        ['PERDIDAS', stats.jugador.rachas.perdidas],
+        ['MANOS SIN BJ', stats.jugador.rachas.sinBJ],
+        ['GANE DOBLADA', stats.jugador.rachas.ganeDob],
+        ['PERDI DOBLADA', stats.jugador.rachas.perdiDob],
+        ['DIVIDI GANE', stats.jugador.rachas.divGane],
+        ['DIVIDI PERDI', stats.jugador.rachas.divPerdi]
+      ];
+
+      const porcentajes: any[] = [['ACCION','UNIDAD','%'],
+        ['GANADAS', stats.jugador.porcentajes.unidad.ganadas, stats.jugador.porcentajes.porcentajes.ganadas/100],
+        ['PERDIDAS', stats.jugador.porcentajes.unidad.perdidas, stats.jugador.porcentajes.porcentajes.perdidas/100],
+        ['EMPATE', stats.jugador.porcentajes.unidad.empate, stats.jugador.porcentajes.porcentajes.empate/100],
+        ['', '', 1]
+      ];
+
+      const dilerRachas: any[] = [['RACHAS DILER','CANTIDAD'],
+        ['VOLO', stats.diler.rachas.volo],
+        ['NO VOLO', stats.diler.rachas.noVolo],
+        ['BJ', stats.diler.rachas.bj]
+      ];
+
+      const dilerPct: any[] = [['ACCION','UNIDAD','%'],
+        ['VOLO', stats.diler.porcentajes.unidad.volo, stats.diler.porcentajes.porcentajes.volo/100],
+        ['NO VOLO', stats.diler.porcentajes.unidad.noVolo, stats.diler.porcentajes.porcentajes.noVolo/100],
+        ['BJ', stats.diler.porcentajes.unidad.bj, stats.diler.porcentajes.porcentajes.bj/100],
+        ['', '', 1]
+      ];
+
+      // Leer plantilla XLSM y escribir valores en el sheet ORIGINAL para conservar estilos
+      if (!XLSXMod){ XLSXMod = await import('xlsx'); }
+      const resp = await fetch('/Plantilla_BJ_FINAL.xlsm');
+      if (!resp.ok) throw new Error('No se pudo cargar la plantilla XLSM');
+      const buf = await resp.arrayBuffer();
+      const wb = XLSXMod.read(buf, { type: 'array' });
+      const wsName = 'ORIGINAL';
+      const ws = wb.Sheets[wsName] || wb.Sheets[wb.SheetNames[0]];
+
+      const decode = XLSXMod.utils.decode_cell; const encode = XLSXMod.utils.encode_cell; const decodeRange = XLSXMod.utils.decode_range; const encodeRange = XLSXMod.utils.encode_range;
+      function cellString(c:any){ return (typeof c?.v === 'string') ? c.v.trim() : ''; }
+      function findCells(text:string){ const out:string[]=[]; for(const addr of Object.keys(ws)){ if(addr[0]==='!') continue; const v = cellString(ws[addr]); if(v.toUpperCase()===text.toUpperCase()) out.push(addr); } return out.sort((a,b)=>{const A=decode(a),B=decode(b); return A.r-B.r||A.c-B.c;}); }
+      function writeRight(addr:string, val:any){ const rc=decode(addr); const tgt=encode({r:rc.r, c:rc.c+1}); const out:any = ws[tgt]||{}; out.t = typeof val==='number' ? 'n' : 's'; out.v = val; ws[tgt]=out; }
+      function writeTwoRight(addr:string, val:number){ const rc=decode(addr); const tgt=encode({r:rc.r, c:rc.c+2}); const out:any = ws[tgt]||{}; out.t='n'; out.v=val; out.z='0.0%'; ws[tgt]=out; }
+      function nearestTo(header:string, target:string){ const h = findCells(header)[0]; if(!h) return null; const H = decode(h); const acc = findCells(target); if(acc.length===0) return null; let best = acc[0]; let bestDist = Infinity; for(const a of acc){ const A=decode(a); const d = Math.abs(A.r-H.r)+Math.abs(A.c-H.c); if(d<bestDist) { bestDist=d; best=a; } } return best; }
+
+      // Cantidad de manos
+      const cantAddr = findCells('CANTIDAD DE MANOS')[0]; if (cantAddr) writeRight(cantAddr, rowsAll.length);
+
+      // Rachas del jugador (debajo de "ULTIMAS RACHAS")
+      const rHeader = findCells('ULTIMAS RACHAS')[0];
+      if (rHeader){ const col = decode(rHeader).c; const row = decode(rHeader).r; const set = (label:string, val:number) => { const match = findCells(label).find(a=> decode(a).c===col && decode(a).r>row); if (match) writeRight(match, val); };
+        set('GANADAS', stats.jugador.rachas.ganadas);
+        set('PERDIDAS', stats.jugador.rachas.perdidas);
+        set('MANOS SIN BJ', stats.jugador.rachas.sinBJ);
+        set('GANE DOBLADA', stats.jugador.rachas.ganeDob);
+        set('PERDI DOBLADA', stats.jugador.rachas.perdiDob);
+        set('DIVIDI GANE', stats.jugador.rachas.divGane);
+        set('DIVIDI PERDI', stats.jugador.rachas.divPerdi);
       }
 
-      // 2) Tabla RACHAS DILER (conteo de rachas)
-      const grpRachasDiler = findHeaderGroup(['RACHAS DILER','CANTIDAD']);
-      if (grpRachasDiler){
-        const colR = grpRachasDiler.cols['RACHAS DILER']; const colC = grpRachasDiler.cols['CANTIDAD'];
-        for(const row of rows){
-          const rnum = Number(row.getAttribute('r')); if (rnum <= grpRachasDiler.row) continue;
-          const labelCell = Array.from(row.getElementsByTagName('c')).find(c => c.getAttribute('r') === ref(colR, rnum));
-          const name = labelCell ? (getCellText(labelCell)||'').toUpperCase().trim() : '';
-          if (!name) break;
-          if (['VOLO','NO VOLO','BJ'].includes(name)){
-            const valMap: any = { 'VOLO': stats.diler.rachas.volo, 'NO VOLO': stats.diler.rachas.noVolo, 'BJ': stats.diler.rachas.bj };
-            setNum(row, colC, valMap[name]);
-          }
-        }
+      // Porcentajes del jugador: buscar bloque cercano a "PORCENTAJE %"
+      const accionPct = nearestTo('PORCENTAJE %','ACCION');
+      if (accionPct){ const c = decode(accionPct).c; const r = decode(accionPct).r; const set = (label:string, unidad:number, porcentaje:number) => { const lab = findCells(label).find(a=> decode(a).c===c && decode(a).r>r); if(lab){ writeRight(lab, unidad); writeTwoRight(lab, porcentaje/100); } };
+        set('GANADAS', stats.jugador.porcentajes.unidad.ganadas, stats.jugador.porcentajes.porcentajes.ganadas);
+        set('PERDIDAS', stats.jugador.porcentajes.unidad.perdidas, stats.jugador.porcentajes.porcentajes.perdidas);
+        set('EMPATE', stats.jugador.porcentajes.unidad.empate, stats.jugador.porcentajes.porcentajes.empate);
       }
 
-      // 3) Tabla ACCION/UNIDAD/% del DILER
-      const grpDiler = findHeaderGroup(['ACCION','UNIDAD','%']);
-      if (grpDiler){
-        const colA = grpDiler.cols['ACCION']; const colU = grpDiler.cols['UNIDAD']; const colP = grpDiler.cols['%'];
-        for(const row of rows){
-          const rnum = Number(row.getAttribute('r')); if (rnum <= grpDiler.row) continue;
-          const accionCell = Array.from(row.getElementsByTagName('c')).find(c => c.getAttribute('r') === ref(colA, rnum));
-          const name = accionCell ? (getCellText(accionCell)||'').toUpperCase().trim() : '';
-          if (!name) break;
-          if (['VOLO','NO VOLO','BJ'].includes(name)){
-            const unidadMap: any = { 'VOLO': stats.diler.porcentajes.unidad.volo, 'NO VOLO': stats.diler.porcentajes.unidad.noVolo, 'BJ': stats.diler.porcentajes.unidad.bj };
-            const pctMap: any = { 'VOLO': stats.diler.porcentajes.porcentajes.volo, 'NO VOLO': stats.diler.porcentajes.porcentajes.noVolo, 'BJ': stats.diler.porcentajes.porcentajes.bj };
-            setNum(row, colU, unidadMap[name]);
-            setNum(row, colP, pctMap[name] / 100);
-          }
-        }
+      // Rachas del diler
+      const dHeader = findCells('RACHAS DILER')[0];
+      if (dHeader){ const c = decode(dHeader).c; const r = decode(dHeader).r; const set = (label:string, val:number) => { const lab = findCells(label).find(a=> decode(a).c===c && decode(a).r>r); if(lab) writeRight(lab, val); };
+        set('VOLO', stats.diler.rachas.volo);
+        set('NO VOLO', stats.diler.rachas.noVolo);
+        set('BJ', stats.diler.rachas.bj);
       }
 
-      // 4) Tabla ULTIMAS RACHAS (conteos específicos)
-      const grpUltR = findHeaderGroup(['ULTIMAS RACHAS','CANTIDAD']);
-      if (grpUltR){
-        const colL = grpUltR.cols['ULTIMAS RACHAS']; const colC = grpUltR.cols['CANTIDAD'];
-        const map: Record<string, number> = {
-          'GANADAS': stats.jugador.rachas.ganadas,
-          'PERDIDAS': stats.jugador.rachas.perdidas,
-          'MANOS SIN BJ': stats.jugador.rachas.sinBJ,
-          'GANE DOBLADA': stats.jugador.rachas.ganeDob,
-          'PERDI DOBLADA': stats.jugador.rachas.perdiDob,
-          'DIVIDI GANE': stats.jugador.rachas.divGane,
-          'DIVIDI PERDI': stats.jugador.rachas.divPerdi
-        };
-        for(const row of rows){
-          const rnum = Number(row.getAttribute('r')); if (rnum <= grpUltR.row) continue;
-          const labelCell = Array.from(row.getElementsByTagName('c')).find(c => c.getAttribute('r') === ref(colL, rnum));
-          const name = labelCell ? (getCellText(labelCell)||'').toUpperCase().trim() : '';
-          if (!name) break;
-          if (map[name] !== undefined){ setNum(row, colC, map[name]); }
-        }
+      // Porcentajes del diler: bloque cercano a "DILER %"
+      const accionDilerPct = nearestTo('DILER %','ACCION');
+      if (accionDilerPct){ const c = decode(accionDilerPct).c; const r = decode(accionDilerPct).r; const set = (label:string, unidad:number, porcentaje:number) => { const lab = findCells(label).find(a=> decode(a).c===c && decode(a).r>r); if(lab){ writeRight(lab, unidad); writeTwoRight(lab, porcentaje/100); } };
+        set('VOLO', stats.diler.porcentajes.unidad.volo, stats.diler.porcentajes.porcentajes.volo);
+        set('NO VOLO', stats.diler.porcentajes.unidad.noVolo, stats.diler.porcentajes.porcentajes.noVolo);
+        set('BJ', stats.diler.porcentajes.unidad.bj, stats.diler.porcentajes.porcentajes.bj);
       }
 
-      // Actualizar dimensión del worksheet para evitar reparaciones de Excel
-      const dimEl = sheetDoc.getElementsByTagName('dimension')[0];
-      const endCol = Math.max(colManos, colRes, colDil);
-      const endRow = startRow + Math.max(hands.length, 1);
-      if (dimEl) dimEl.setAttribute('ref', `A1:${numToCol(endCol)}${endRow}`);
+      // Registro de manos
+      const manosHdr = findCells('MANOS')[0];
+      if (manosHdr){
+        const row = decode(manosHdr).r; const colManos = decode(manosHdr).c;
+        // Buscar encabezados en la MISMA fila
+        let resHdr:string|undefined; let dilHdr:string|undefined;
+        for (const addr of Object.keys(ws)){
+          if(addr[0]==='!') continue; const rc = decode(addr); if(rc.r!==row) continue; const txt = cellString(ws[addr]).toUpperCase();
+          if (txt==='RESULTADO JUGADOR') resHdr = addr; if (txt==='DILER') dilHdr = addr;
+        }
+        const cRes = resHdr ? decode(resHdr).c : colManos+1;
+        const cDil = dilHdr ? decode(dilHdr).c : colManos+2;
+        const startRow = row + 1;
+        rowsAll.forEach((h:any, i:number) => {
+          ws[encode({r:startRow+i, c:colManos})] = { t:'n', v:i+1 } as any;
+          ws[encode({r:startRow+i, c:cRes})] = { t:'s', v:(h.resultado||'').trim() } as any;
+          ws[encode({r:startRow+i, c:cDil})] = { t:'s', v:(h.diler||'').trim() } as any;
+        });
+        // Extender rango
+        const range = decodeRange(ws['!ref'] || 'A1');
+        range.e.r = Math.max(range.e.r, startRow + rowsAll.length + 2);
+        ws['!ref'] = encodeRange(range);
+      }
 
-      // Sustituir hoja y generar blob
-      zip.file(sheetPath, serializeXML(sheetDoc));
-      const outBlob = await zip.generateAsync({ type: 'blob' });
       const fname = `${(snap?.snapshot_name || 'snapshot')}.xlsm`;
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(outBlob);
-      a.download = fname;
-      document.body.appendChild(a);
-      a.click();
-      URL.revokeObjectURL(a.href);
-      a.remove();
+      XLSXMod.writeFile(wb, fname, { bookType: 'xlsm' });
     } catch (e: any) {
       console.error(e);
       alert('Error generando Excel: ' + (e?.message ?? e));
