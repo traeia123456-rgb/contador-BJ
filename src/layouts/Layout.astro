@@ -33,15 +33,15 @@
 				type GlobalSaveCallback = () => void | Promise<void>;
 				const registry: Set<GlobalSaveCallback> = new Set();
 				const toast = document.getElementById('global-save-toast');
-				function showToast(msg) {
+				function showToast(msg: string) {
 					if(!toast) return;
 					toast.textContent = msg;
 					toast.classList.remove('hidden');
 					setTimeout(()=>toast.classList.add('hidden'), 1500);
 				}
-				(window).GlobalSave = {
-					register(fn){ registry.add(fn); return fn; },
-					unregister(fn){ registry.delete(fn); },
+				(window as any).GlobalSave = {
+					register(fn: GlobalSaveCallback){ registry.add(fn); return fn; },
+					unregister(fn: GlobalSaveCallback){ registry.delete(fn); },
 					async saveAll(){
 						showToast('Guardando…');
 						for (const fn of Array.from(registry)) {
@@ -51,7 +51,7 @@
 					}
 				};
 				document.getElementById('global-save')?.addEventListener('click', ()=>{
-					(window).GlobalSave.saveAll();
+					(window as any).GlobalSave.saveAll();
 				});
 			})();
 		</script>
