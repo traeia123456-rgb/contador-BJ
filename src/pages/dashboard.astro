@@ -1190,8 +1190,8 @@ import Layout from "../layouts/Layout.astro";
         // No modificar ws['!ref'] para no romper referencias/formulas de la plantilla
       }
 
-      const fname = `${(snap?.snapshot_name || 'snapshot')}.xlsx`;
-      XLSXMod.writeFile(wb, fname, { bookType: 'xlsx' });
+      const fname = `${(snap?.snapshot_name || 'snapshot')}.xlsm`;
+      XLSXMod.writeFile(wb, fname, { bookType: 'xlsm' });
     } catch (e: any) {
       console.error(e);
       alert('Error generando Excel: ' + (e?.message ?? e));
