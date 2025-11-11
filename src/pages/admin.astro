@@ -102,6 +102,8 @@ import Layout from "../layouts/Layout.astro";
   import { getSupabase } from "../lib/supabaseClient";
   const supabase = getSupabase(true);
   let workspacesCache: Array<{ id: string; name: string; is_principal?: boolean; owner_id?: string }> = [];
+  // Cache del usuario autenticado para operaciones que requieren owner_id
+  let currentUserId: string | null = null;
 
   async function ensureSession() {
     try {
@@ -421,7 +423,14 @@ import Layout from "../layouts/Layout.astro";
     const name = (document.getElementById('ws-name') as HTMLInputElement).value?.trim();
     const principal = (document.getElementById('ws-principal') as HTMLInputElement).checked;
     if (!name) return alert('Nombre requerido');
-    const { error } = await supabase.from('workspaces').insert({ name, is_principal: principal });
+    // Asegurar owner_id (no nulo) usando el usuario autenticado
+    let ownerId = currentUserId;
+    if (!ownerId) {
+      const { data: userData } = await supabase.auth.getUser();
+      ownerId = userData?.user?.id || null;
+    }
+    if (!ownerId) return alert('No se pudo determinar el usuario actual (owner_id). Vuelve a iniciar sesión.');
+    const { error } = await supabase.from('workspaces').insert({ name, is_principal: principal, owner_id: ownerId });
     if (error) return alert('Error al crear workspace: ' + (error.message || ''));
     (document.getElementById('ws-name') as HTMLInputElement).value = '';
     (document.getElementById('ws-principal') as HTMLInputElement).checked = false;
@@ -505,6 +514,7 @@ import Layout from "../layouts/Layout.astro";
   (async () => {
     const session = await ensureSession();
     if (!session) return;
+    currentUserId = session.user.id;
     const admin = await isAdmin(session.user.id);
     const status = document.getElementById('status') as HTMLParagraphElement | null;
     if (!admin) {
