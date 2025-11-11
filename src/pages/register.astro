@@ -100,6 +100,11 @@ import Layout from "../layouts/Layout.astro";
         </button>
       </form>
 
+      <div class="mt-4">
+        <button id="resendConfirmReg" class="w-full text-sm bg-white/10 hover:bg-white/20 border border-white/20 rounded-md px-3 py-2">Reenviar email de confirmación</button>
+        <div id="resendMsgReg" class="text-xs mt-2 hidden"></div>
+      </div>
+
       <p class="mt-6 text-sm text-bj-gray">¿Ya tienes cuenta? <a href="/login" class="underline hover:text-white">Inicia sesión</a></p>
     </section>
   </main>
@@ -107,11 +112,14 @@ import Layout from "../layouts/Layout.astro";
 
 <script>
   import { signUp } from "../lib/auth";
+  import { getSupabase } from "../lib/supabaseClient";
 
   const form = document.getElementById('registerForm') as HTMLFormElement;
   const message = document.getElementById('message') as HTMLDivElement;
   const submitButton = form?.querySelector('button[type="submit"]') as HTMLButtonElement;
   const spinner = submitButton?.querySelector('[role="status"]') as HTMLDivElement;
+  const site = (import.meta as any).env?.PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+  const confirmRedirect = String(site || '').replace(/\/$/, '') + '/login';
 
   function showLoading(loading: boolean) {
     if (loading) {
@@ -176,7 +184,7 @@ import Layout from "../layouts/Layout.astro";
       if (error) throw error;
 
       // Registro exitoso
-      message.textContent = 'Cuenta creada correctamente. Redirigiendo...';
+      message.textContent = 'Te enviamos un email de confirmación. Redirigiendo al login...';
       message.classList.remove('hidden', 'text-red-500');
       message.classList.add('text-green-500');
 
@@ -189,6 +197,23 @@ import Layout from "../layouts/Layout.astro";
       showError(err?.message || 'No se pudo crear la cuenta');
     } finally {
       showLoading(false);
+    }
+  });
+
+  // Reenviar email de confirmación desde Register
+  document.getElementById('resendConfirmReg')?.addEventListener('click', async () => {
+    const msg = document.getElementById('resendMsgReg') as HTMLDivElement | null;
+    if (msg) { msg.classList.add('hidden'); msg.classList.remove('text-red-500','text-green-500'); }
+    try {
+      const supabase = getSupabase();
+      const emailInput = document.getElementById('email') as HTMLInputElement | null;
+      const email = emailInput ? emailInput.value.trim() : '';
+      if (!email) throw new Error('Ingresa tu email en el formulario');
+      const { error } = await supabase.auth.resend({ type: 'signup', email, options: { emailRedirectTo: confirmRedirect } });
+      if (error) throw error;
+      if (msg) { msg.textContent = 'Te reenviamos el email de confirmación. Revisa tu bandeja y spam.'; msg.classList.remove('hidden'); msg.classList.add('text-green-500'); }
+    } catch (err: any) {
+      if (msg) { msg.textContent = err?.message || 'No se pudo reenviar el email'; msg.classList.remove('hidden'); msg.classList.add('text-red-500'); }
     }
   });
 </script>

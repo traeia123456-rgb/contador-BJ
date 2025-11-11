@@ -1,0 +1,104 @@
+---
+const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Reautenticación – Contador BJ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body style="margin:0;padding:0;background:#0b0b0b;">
+  <!-- Preheader (hidden) -->
+  <div style="display:none!important;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">
+    Confirma tu identidad para continuar en Contador-BJ.
+  </div>
+  <table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#0b0b0b;margin:0;padding:0;">
+    <tr>
+      <td align="center">
+        <table role="presentation" cellpadding="0" cellspacing="0" width="600" style="max-width:600px;width:100%;">
+          <tr>
+            <td style="padding:24px 24px 0 24px;text-align:center;">
+              <span style="font-family:Segoe UI,Arial,sans-serif;font-size:20px;font-weight:700;color:#ffffff;">Contador&nbsp;BJ</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px;">
+                <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#121212;border:1px solid #1f1f1f;border-radius:12px;">
+                  <tr>
+                    <td style="padding:28px 24px 8px 24px;text-align:left;">
+                      <h2 style="margin:0 0 8px 0;font-family:Segoe UI,Arial,sans-serif;font-size:22px;line-height:28px;color:#ffffff;">Confirma que eres tú</h2>
+                      <p style="margin:0;font-family:Segoe UI,Arial,sans-serif;font-size:14px;line-height:20px;color:#b5b5b5;">Para continuar con esta acción necesitamos verificar tu identidad. Haz clic en el botón para reautenticarte.</p>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:16px 24px 24px 24px;text-align:center;">
+                      <a href="https://contador-bj.vercel.app/reauthenticate?token=EXAMPLE" target="_blank" style="display:inline-block;background:#00b3ff;color:#0b0b0b;text-decoration:none;font-family:Segoe UI,Arial,sans-serif;font-weight:700;font-size:14px;line-height:16px;padding:14px 22px;border-radius:10px;">Confirmar identidad</a>
+                    </td>
+                  </tr>
+                  <tr>
+                    <td style="padding:0 24px 24px 24px;">
+                      <p style="margin:0;font-family:Segoe UI,Arial,sans-serif;font-size:12px;line-height:18px;color:#777;">Si el botón no funciona, copia y pega este enlace:<br /><a href="https://contador-bj.vercel.app/reauthenticate?token=EXAMPLE" style="color:#9ad7ff;word-break:break-all;text-decoration:none;">https://contador-bj.vercel.app/reauthenticate?token=EXAMPLE</a></p>
+                    </td>
+                  </tr>
+                </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 24px 24px 24px;text-align:center;">
+              <p style="margin:0;font-family:Segoe UI,Arial,sans-serif;font-size:12px;line-height:18px;color:#6d6d6d;">© Contador‑BJ · <a href="https://contador-bj.vercel.app" style="color:#9ad7ff;text-decoration:none;">https://contador-bj.vercel.app</a></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+---
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <title>Previsualizar – Reautenticación</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>
+      body{margin:0;font-family:Segoe UI,Arial,Helvetica,sans-serif;background:#0b0b0b;color:#fff;display:flex;flex-direction:column;height:100vh;}
+      header{background:#121212;border-bottom:1px solid #1f1f1f;padding:16px 24px;display:flex;align-items:center;justify-content:space-between;}
+      header h1{font-size:18px;margin:0;font-weight:700;}
+      .wrap{flex:1;display:flex;}
+      .preview{flex:1;border:none;}
+      .code{background:#0b0b0b;border-left:1px solid #1f1f1f;width:360px;display:flex;flex-direction:column;}
+      .code h2{font-size:14px;margin:0 0 12px 0;font-weight:600;}
+      .code pre{background:#0b0b0b;color:#d4d4d4;padding:16px;font-size:12px;line-height:1.45;white-space:pre-wrap;word-break:break-word;flex:1;overflow:auto;margin:0;border:1px solid #1f1f1f;border-radius:8px;}
+      .copy-btn{background:#00b3ff;color:#0b0b0b;border:none;padding:8px 16px;font-weight:600;border-radius:8px;cursor:pointer;margin-top:12px;}
+      .copy-btn:hover{opacity:.9;}
+      .copy-btn:active{opacity:.8;}
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Previsualizar – Reautenticación</h1>
+      <button class="copy-btn" id="copyBtn">Copiar HTML</button>
+    </header>
+    <div class="wrap">
+      <iframe class="preview" srcdoc={html}></iframe>
+      <div class="code">
+        <div style="padding:24px;">
+          <h2>Código para Supabase</h2>
+          <pre id="codeBox">{html}</pre>
+        </div>
+      </div>
+    </div>
+    <script>
+      const btn = document.getElementById('copyBtn');
+      const el = document.getElementById('codeBox');
+      const txt = el && el.textContent ? el.textContent : '';
+      if (btn) {
+        btn.addEventListener('click', () => {
+          navigator.clipboard.writeText(txt).then(() => {
+            btn.textContent = '¡Copiado!';
+            setTimeout(() => (btn.textContent = 'Copiar HTML'), 1200);
+          });
+        });
+      }
+    </script>
+  </body>
+</html>

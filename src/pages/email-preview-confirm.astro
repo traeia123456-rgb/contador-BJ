@@ -1,0 +1,109 @@
+---
+import Layout from "../layouts/Layout.astro";
+const site = import.meta.env.PUBLIC_SITE_URL || "https://contador-bj.vercel.app";
+const previewUrl = `${site.replace(/\/$/, '')}/login?confirm=1`;
+const html = `<!-- Preheader (hidden) -->
+<div style="display:none!important;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">
+  Confirma tu correo para activar tu cuenta en Contador-BJ.
+</div>
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#0b0b0b;margin:0;padding:0;">
+  <tr>
+    <td align="center">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="600" style="max-width:600px;width:100%;">
+        <tr>
+          <td style="padding:24px 24px 0 24px;text-align:center;">
+            <span style="font-family:Segoe UI,Arial,sans-serif;font-size:20px;font-weight:700;color:#ffffff;">Contador&nbsp;BJ</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:24px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#121212;border:1px solid #1f1f1f;border-radius:12px;">
+              <tr>
+                <td style="padding:28px 24px 8px 24px;text-align:left;">
+                  <h2 style="margin:0 0 8px 0;font-family:Segoe UI,Arial,sans-serif;font-size:22px;line-height:28px;color:#ffffff;">Confirma tu correo</h2>
+                  <p style="margin:0;font-family:Segoe UI,Arial,sans-serif;font-size:14px;line-height:20px;color:#b5b5b5;">Gracias por registrarte. Por favor confirma tu dirección para activar tu cuenta.</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:16px 24px 24px 24px;text-align:center;">
+                  <a href="${previewUrl}" target="_blank" style="display:inline-block;background:#00b3ff;color:#0b0b0b;text-decoration:none;font-family:Segoe UI,Arial,sans-serif;font-weight:700;font-size:14px;line-height:16px;padding:14px 22px;border-radius:10px;">Confirmar correo</a>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:0 24px 24px 24px;">
+                  <p style="margin:0;font-family:Segoe UI,Arial,sans-serif;font-size:12px;line-height:18px;color:#777;">Si el botón no funciona, copia y pega este enlace:<br /><a href="${previewUrl}" style="color:#9ad7ff;word-break:break-all;text-decoration:none;">${previewUrl}</a></p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 24px 24px 24px;text-align:center;">
+            <p style="margin:0;font-family:Segoe UI,Arial,sans-serif;font-size:12px;line-height:18px;color:#6d6d6d;">© Contador‑BJ · <a href="${site}" style="color:#9ad7ff;text-decoration:none;">${site}</a></p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>`;
+// Código de la plantilla para copiar (sin variables, con placeholders de Supabase)
+const templateCode = `<!-- Preheader (hidden) -->
+<div style="display:none!important;opacity:0;color:transparent;height:0;width:0;overflow:hidden;">
+  Confirma tu correo para activar tu cuenta en Contador-BJ.
+</div>
+<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="background:#0b0b0b;margin:0;padding:0;">
+  <tr>
+    <td align="center">
+      <table role="presentation" cellpadding="0" cellspacing="0" width="600" style="max-width:600px;width:100%;">
+        <tr>
+          <td style="padding:24px 24px 0 24px;text-align:center;">
+            <span style="font-family:Segoe UI,Arial,sans-serif;font-size:20px;font-weight:700;color:#ffffff;">Contador&nbsp;BJ</span>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:24px;">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#121212;border:1px solid #1f1f1f;border-radius:12px;">
+              <tr>
+                <td style="padding:28px 24px 8px 24px;text-align:left;">
+                  <h2 style="margin:0 0 8px 0;font-family:Segoe UI,Arial,sans-serif;font-size:22px;line-height:28px;color:#ffffff;">Confirma tu correo</h2>
+                  <p style="margin:0;font-family:Segoe UI,Arial,sans-serif;font-size:14px;line-height:20px;color:#b5b5b5;">Gracias por registrarte. Por favor confirma tu dirección para activar tu cuenta.</p>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:16px 24px 24px 24px;text-align:center;">
+                  <a href="{{ .ConfirmationURL }}" target="_blank" style="display:inline-block;background:#00b3ff;color:#0b0b0b;text-decoration:none;font-family:Segoe UI,Arial,sans-serif;font-weight:700;font-size:14px;line-height:16px;padding:14px 22px;border-radius:10px;">Confirmar correo</a>
+                </td>
+              </tr>
+              <tr>
+                <td style="padding:0 24px 24px 24px;">
+                  <p style="margin:0;font-family:Segoe UI,Arial,sans-serif;font-size:12px;line-height:18px;color:#777;">Si el botón no funciona, copia y pega este enlace:<br /><a href="{{ .ConfirmationURL }}" style="color:#9ad7ff;word-break:break-all;text-decoration:none;">{{ .ConfirmationURL }}</a></p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td style="padding:0 24px 24px 24px;text-align:center;">
+            <p style="margin:0;font-family:Segoe UI,Arial,sans-serif;font-size:12px;line-height:18px;color:#6d6d6d;">© Contador‑BJ · <a href="{{ .SiteURL }}" style="color:#9ad7ff;text-decoration:none;">{{ .SiteURL }}</a></p>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>`;
+---
+<Layout title="Email Preview · Confirmación">
+  <main class="max-w-4xl mx-auto p-6">
+    <h1 class="text-2xl font-semibold mb-4">Previsualización del email de confirmación</h1>
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="border rounded-xl overflow-hidden">
+        <iframe srcdoc={html} style="width:100%;height:600px;border:0;background:#0b0b0b"></iframe>
+      </div>
+      <div class="border rounded-xl p-4 bg-[#0b0b0b]">
+        <h2 class="text-lg mb-2">Plantilla para Supabase</h2>
+        <p class="text-sm text-gray-400 mb-3">Copia este HTML en Supabase → Authentication → Emails → Templates → Confirm signup.</p>
+        <pre class="text-xs leading-5 whitespace-pre-wrap text-gray-200">{templateCode}</pre>
+      </div>
+    </div>
+  </main>
+</Layout>
