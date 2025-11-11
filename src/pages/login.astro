@@ -52,8 +52,21 @@ import Layout from "../layouts/Layout.astro";
           </div>
         </button>
       </form>
+      <div class="mt-4 text-sm flex items-center justify-between">
+        <a id="forgotLink" href="#" class="underline hover:text-white text-bj-gray">¿Olvidaste tu contraseña?</a>
+        <a href="/register" class="underline hover:text-white text-bj-gray">Crear cuenta</a>
+      </div>
 
-      <p class="mt-6 text-sm text-bj-gray">¿No tienes cuenta? <a href="/register" class="underline hover:text-white">Regístrate</a></p>
+      <div id="forgotSection" class="mt-4 hidden">
+        <div class="bg-black/40 border border-white/10 rounded-md p-3">
+          <p class="text-sm text-bj-gray mb-2">Ingresa tu email (o usuario) y te enviaremos un enlace para crear una nueva contraseña.</p>
+          <form id="forgotForm" class="space-y-3">
+            <input id="forgotIdentity" type="text" class="w-full rounded-md bg-white/10 border border-white/20 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-bj-green" placeholder="tu@email.com o usuario" required />
+            <button type="submit" class="w-full bg-bj-green hover:bg-green-600 transition-colors text-black font-semibold rounded-md px-3 py-2">Enviar enlace de recuperación</button>
+            <div id="forgotMsg" class="text-sm hidden"></div>
+          </form>
+        </div>
+      </div>
     </section>
   </main>
 </Layout>
@@ -66,6 +79,14 @@ import Layout from "../layouts/Layout.astro";
   const message = document.getElementById('message') as HTMLDivElement;
   const submitButton = form?.querySelector('button[type="submit"]') as HTMLButtonElement;
   const spinner = submitButton?.querySelector('[role="status"]') as HTMLDivElement;
+
+  const forgotLink = document.getElementById('forgotLink') as HTMLAnchorElement | null;
+  const forgotSection = document.getElementById('forgotSection') as HTMLDivElement | null;
+  const forgotForm = document.getElementById('forgotForm') as HTMLFormElement | null;
+  const forgotMsg = document.getElementById('forgotMsg') as HTMLDivElement | null;
+
+  const site = (import.meta as any).env?.PUBLIC_SITE_URL || (typeof window !== 'undefined' ? window.location.origin : '');
+  const redirectTo = String(site || '').replace(/\/$/, '') + '/recover';
 
   function showLoading(loading: boolean) {
     if (loading) {
@@ -145,6 +166,53 @@ import Layout from "../layouts/Layout.astro";
       showError(err?.message || 'No se pudo iniciar sesión');
     } finally {
       showLoading(false);
+    }
+  });
+
+  // Toggle sección de recuperación
+  forgotLink?.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (!forgotSection) return;
+    const isHidden = forgotSection.classList.contains('hidden');
+    if (isHidden) {
+      forgotSection.classList.remove('hidden');
+    } else {
+      forgotSection.classList.add('hidden');
+    }
+  });
+
+  // Enviar email de recuperación
+  forgotForm?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!forgotMsg) return;
+    forgotMsg.classList.add('hidden');
+    forgotMsg.classList.remove('text-red-500', 'text-green-500');
+    try {
+      const supabase = getSupabase();
+      const identityInput = document.getElementById('forgotIdentity') as HTMLInputElement | null;
+      const identity = identityInput ? identityInput.value.trim() : '';
+      if (!identity) throw new Error('Ingresa tu email o usuario');
+
+      let email = identity;
+      if (!identity.includes('@')) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email')
+          .eq('username', identity)
+          .maybeSingle();
+        if (!profile?.email) throw new Error('Usuario no encontrado');
+        email = profile.email;
+      }
+
+      const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
+      if (error) throw error;
+      forgotMsg.textContent = 'Te enviamos un email con instrucciones para crear una nueva contraseña.';
+      forgotMsg.classList.remove('hidden');
+      forgotMsg.classList.add('text-green-500');
+    } catch (err: any) {
+      forgotMsg.textContent = err?.message || 'No se pudo enviar el email de recuperación';
+      forgotMsg.classList.remove('hidden');
+      forgotMsg.classList.add('text-red-500');
     }
   });
 </script>
