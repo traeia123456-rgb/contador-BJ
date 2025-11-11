@@ -1007,7 +1007,7 @@ import Layout from "../layouts/Layout.astro";
 
   document.getElementById('btn-load-snapshots')?.addEventListener('click', loadSnapshots);
 
-  // --- Descarga a Excel usando plantilla XLSM SIN SheetJS (JSZip + OOXML) ---
+  // --- Descarga a Excel usando plantilla (XLSX por defecto) ---
   async function downloadSnapshotExcel(id: string){
     try {
       const { data, error } = await supabase.from('bj_snapshots').select('data, created_at, workspace_id, project_id').eq('id', id).single();
@@ -1097,10 +1097,10 @@ import Layout from "../layouts/Layout.astro";
         ['', '', 1]
       ];
 
-      // Leer plantilla XLSM y escribir valores en el sheet ORIGINAL para conservar estilos
+      // Leer plantilla y escribir valores en el sheet ORIGINAL para conservar estilos
       if (!XLSXMod){ XLSXMod = await import('xlsx'); }
       const resp = await fetch('/Plantilla_BJ_FINAL.xlsm');
-      if (!resp.ok) throw new Error('No se pudo cargar la plantilla XLSM');
+      if (!resp.ok) throw new Error('No se pudo cargar la plantilla');
       const buf = await resp.arrayBuffer();
       const wb = XLSXMod.read(buf, { type: 'array' });
       const wsName = 'ORIGINAL';
@@ -1176,8 +1176,8 @@ import Layout from "../layouts/Layout.astro";
         ws['!ref'] = encodeRange(range);
       }
 
-      const fname = `${(snap?.snapshot_name || 'snapshot')}.xlsm`;
-      XLSXMod.writeFile(wb, fname, { bookType: 'xlsm' });
+      const fname = `${(snap?.snapshot_name || 'snapshot')}.xlsx`;
+      XLSXMod.writeFile(wb, fname, { bookType: 'xlsx' });
     } catch (e: any) {
       console.error(e);
       alert('Error generando Excel: ' + (e?.message ?? e));
