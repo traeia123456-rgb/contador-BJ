@@ -1165,15 +1165,29 @@ import Layout from "../layouts/Layout.astro";
         const cRes = resHdr ? decode(resHdr).c : colManos+1;
         const cDil = dilHdr ? decode(dilHdr).c : colManos+2;
         const startRow = row + 1;
+
+        // Limpiar previamente un rango amplio para evitar restos en la plantilla
+        const clearRows = 500; // suficiente para uso normal
+        function clearCell(r:number, c:number){
+          const addr = encode({ r, c });
+          const cell:any = ws[addr] || {};
+          cell.t = 's';
+          cell.v = '';
+          ws[addr] = cell;
+        }
+        for(let i=0;i<clearRows;i++){
+          const r = startRow + i;
+          clearCell(r, colManos);
+          clearCell(r, cRes);
+          clearCell(r, cDil);
+        }
+
         rowsAll.forEach((h:any, i:number) => {
           ws[encode({r:startRow+i, c:colManos})] = { t:'n', v:i+1 } as any;
           ws[encode({r:startRow+i, c:cRes})] = { t:'s', v:(h.resultado||'').trim() } as any;
           ws[encode({r:startRow+i, c:cDil})] = { t:'s', v:(h.diler||'').trim() } as any;
         });
-        // Extender rango
-        const range = decodeRange(ws['!ref'] || 'A1');
-        range.e.r = Math.max(range.e.r, startRow + rowsAll.length + 2);
-        ws['!ref'] = encodeRange(range);
+        // No modificar ws['!ref'] para no romper referencias/formulas de la plantilla
       }
 
       const fname = `${(snap?.snapshot_name || 'snapshot')}.xlsx`;
