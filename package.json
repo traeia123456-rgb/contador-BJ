@@ -18,10 +18,7 @@
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
     "zod": "3.25.76"
   },
-  "overrides": {
-    "jszip": "3.10.1",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.18.5/xlsx-0.18.5.tgz"
-  },
+  "overrides": {},
   "devDependencies": {
     "@astrojs/vercel": "^9.0.0"
   }
