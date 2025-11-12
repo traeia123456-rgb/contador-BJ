@@ -15,7 +15,7 @@
     "astro": "5.15.2",
     "jszip": "3.10.1",
     "tailwindcss": "4.1.16",
-    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "xlsx": "0.20.3",
     "zod": "3.25.76"
   },
   "overrides": {},
