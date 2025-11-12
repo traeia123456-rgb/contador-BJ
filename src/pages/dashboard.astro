@@ -148,6 +148,59 @@ import Layout from "../layouts/Layout.astro";
         </div>
       </div>
 
+      <!-- Alertas -->
+      <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-4">
+        <div class="flex items-center justify-between mb-3">
+          <h2 class="text-lg font-semibold">Alertas</h2>
+          <div class="flex items-center gap-2">
+            <span id="alerts-count" class="text-sm px-2 py-1 rounded-md bg-white/10 border border-white/20">0</span>
+            <div class="flex items-center gap-2">
+              <select id="sel-mute-mins" class="text-sm px-2 py-1 rounded bg-white/10 border border-white/20">
+                <option value="5">5 min</option>
+                <option value="10">10 min</option>
+                <option value="30">30 min</option>
+              </select>
+              <button id="btn-mute" class="text-sm px-2 py-1 rounded-md border border-white/20 bg-white/10 hover:bg-white/20">Silenciar</button>
+              <span id="mute-until" class="text-xs text-bj-white/60"></span>
+            </div>
+          </div>
+        </div>
+        <ul id="alerts-list" class="space-y-2 text-sm"></ul>
+        <p id="alerts-empty" class="text-sm text-bj-white/60">Sin alertas por ahora.</p>
+
+        <details id="alerts-settings" class="mt-4 bg-white/5 border border-white/10 rounded-md p-3">
+          <summary class="cursor-pointer text-sm font-medium">Configuración de alertas</summary>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3 text-sm">
+            <div class="space-y-2">
+              <label class="flex items-center gap-2"><input type="checkbox" id="chk-dealerNoVolo" checked /> Diler no voló (racha)</label>
+              <label class="flex items-center gap-2"><input type="number" id="cfg-noVolo" min="1" value="6" class="w-20 px-2 py-1 rounded bg-white/10 border border-white/20" /> Umbral</label>
+              <label class="flex items-center gap-2"><input type="checkbox" id="chk-dealerNoBj" checked /> Diler sin BJ</label>
+              <label class="flex items-center gap-2"><input type="number" id="cfg-sinBjDealer" min="1" value="3" class="w-20 px-2 py-1 rounded bg-white/10 border border-white/20" /> Umbral</label>
+              <label class="flex items-center gap-2"><input type="checkbox" id="chk-playerLossStreak" checked /> Jugador perdidas consecutivas</label>
+              <label class="flex items-center gap-2"><input type="number" id="cfg-lossStreak" min="1" value="6" class="w-20 px-2 py-1 rounded bg-white/10 border border-white/20" /> Umbral</label>
+            </div>
+            <div class="space-y-2">
+              <label class="flex items-center gap-2"><input type="checkbox" id="chk-playerSinBj" checked /> Jugador sin BJ</label>
+              <label class="flex items-center gap-2"><input type="number" id="cfg-playerSinBj" min="1" value="10" class="w-20 px-2 py-1 rounded bg-white/10 border border-white/20" /> Umbral</label>
+              <label class="flex items-center gap-2"><input type="checkbox" id="chk-pctTrend" checked /> Tendencia porcentajes</label>
+              <div class="flex items-center gap-2"><span>Δ% alerta</span><input type="number" id="cfg-pctTrendDelta" min="1" value="15" class="w-20 px-2 py-1 rounded bg-white/10 border border-white/20" /> <span>Ventana</span><input type="number" id="cfg-windowSize" min="5" value="10" class="w-20 px-2 py-1 rounded bg-white/10 border border-white/20" /></div>
+              <label class="flex items-center gap-2"><input type="checkbox" id="chk-doubles" checked /> Dobles (ratio pérdidas)</label>
+              <div class="flex items-center gap-2"><span>Umbral</span><input type="number" id="cfg-doublesLossRate" min="0" max="1" step="0.05" value="0.6" class="w-24 px-2 py-1 rounded bg-white/10 border border-white/20" /></div>
+              <label class="flex items-center gap-2"><input type="checkbox" id="chk-splits" checked /> Divisiones (ratio pérdidas)</label>
+              <div class="flex items-center gap-2"><span>Umbral</span><input type="number" id="cfg-splitsLossRate" min="0" max="1" step="0.05" value="0.6" class="w-24 px-2 py-1 rounded bg-white/10 border border-white/20" /></div>
+              <label class="flex items-center gap-2"><input type="checkbox" id="chk-sound" checked /> Sonido de alerta</label>
+            </div>
+          </div>
+        </details>
+
+        <div class="mt-4">
+          <h3 class="text-sm font-semibold mb-2">Recomendaciones IA</h3>
+          <ul id="ai-list" class="space-y-2 text-sm"></ul>
+          <p id="ai-empty" class="text-sm text-bj-white/60">Sin recomendaciones por ahora.</p>
+        </div>
+      </div>
+      </div>
+
       <!-- Tabla de manos -->
       <div class="bg-black/50 backdrop-blur border border-white/10 rounded-xl p-4">
         <h2 class="text-lg font-semibold mb-3">Registro de manos</h2>
@@ -770,6 +823,12 @@ import Layout from "../layouts/Layout.astro";
     setText('d-pct-novolo', `${pct(dNoVoloTotal)}%`);
     setText('d-pct-bj', `${pct(dBjTotal)}%`);
     setText('d-pct-total', '100%');
+
+    // Actualizar alertas y recomendaciones IA
+    const cfg = getAlertConfig();
+    const alerts = computeAlerts(rows, cfg);
+    updateAlertsUI(alerts);
+    updateAIRecommendations(alerts, rows, cfg);
   }
 
   // Construir objeto de estadísticas (para guardar)
@@ -802,6 +861,10 @@ import Layout from "../layouts/Layout.astro";
     let dStreakNoVolo = 0; for (let i = rows.length - 1; i >= 0; i--) { const d = norm(rows[i].diler); if (d === 'NO VOLO') dStreakNoVolo++; else break; }
     let dStreakBj = 0; for (let i = rows.length - 1; i >= 0; i--) { const d = norm(rows[i].diler); if (d === 'BJ') dStreakBj++; else break; }
 
+    // Desde la última vez que el diler hizo BJ
+    const sinceLastDiler = (match: (r:{resultado:string,diler:string})=>boolean) => { let c=0; for(let i=rows.length-1;i>=0;i--){ if(match(rows[i])) break; c++; } return c; };
+    const dilerSinBj = sinceLastDiler(r => norm(r.diler) === 'BJ');
+
     return {
       total,
       jugador: {
@@ -812,7 +875,7 @@ import Layout from "../layouts/Layout.astro";
         }
       },
       diler: {
-        rachas: { volo: dStreakVolo, noVolo: dStreakNoVolo, bj: dStreakBj },
+        rachas: { volo: dStreakVolo, noVolo: dStreakNoVolo, bj: dStreakBj, sinBj: dilerSinBj },
         porcentajes: {
           unidad: { volo: dVoloTotal, noVolo: dNoVoloTotal, bj: dBjTotal },
           porcentajes: { volo: pct(dVoloTotal), noVolo: pct(dNoVoloTotal), bj: pct(dBjTotal) }
@@ -830,9 +893,268 @@ import Layout from "../layouts/Layout.astro";
       currentPageIndex,
       pages,
       rows: allRows(),
-      stats: collectStats()
+      stats: collectStats(),
+      alerts: computeAlerts(allRows(), getAlertConfig()),
+      alertConfig: getAlertConfig()
     };
   }
+
+  // --- Motor de alertas ---
+  type AlertItem = { severity: 'info'|'warning'|'danger', message: string };
+  type AlertConfig = {
+    enabled: { dealerNoVolo: boolean; dealerNoBj: boolean; playerLossStreak: boolean; playerSinBj: boolean; pctTrend: boolean; doubles: boolean; splits: boolean; sound: boolean; };
+    thresholds: { noVolo: number; sinBjDealer: number; lossStreak: number; playerSinBj: number; pctTrendDelta: number; windowSize: number; doublesLossRate: number; splitsLossRate: number; };
+  };
+
+  const DEFAULT_ALERT_CONFIG: AlertConfig = {
+    enabled: { dealerNoVolo: true, dealerNoBj: true, playerLossStreak: true, playerSinBj: true, pctTrend: true, doubles: true, splits: true, sound: true },
+    thresholds: { noVolo: 6, sinBjDealer: 3, lossStreak: 6, playerSinBj: 10, pctTrendDelta: 15, windowSize: 10, doublesLossRate: 0.6, splitsLossRate: 0.6 }
+  };
+
+  function loadAlertConfig(): AlertConfig{
+    try{ const raw = localStorage.getItem('bj_alert_config'); if (!raw) return DEFAULT_ALERT_CONFIG; const cfg = JSON.parse(raw); return { ...DEFAULT_ALERT_CONFIG, ...cfg, enabled: { ...DEFAULT_ALERT_CONFIG.enabled, ...(cfg?.enabled||{}) }, thresholds: { ...DEFAULT_ALERT_CONFIG.thresholds, ...(cfg?.thresholds||{}) } }; }catch{ return DEFAULT_ALERT_CONFIG; }
+  }
+  function saveAlertConfig(cfg: AlertConfig){ try{ localStorage.setItem('bj_alert_config', JSON.stringify(cfg)); }catch{} }
+  function getAlertConfig(): AlertConfig{ return loadAlertConfig(); }
+  function bindAlertConfigUI(){
+    const cfg = loadAlertConfig();
+    const byId = (id: string) => document.getElementById(id) as HTMLInputElement | null;
+    const ids: Record<string, string> = { dealerNoVolo: 'chk-dealerNoVolo', dealerNoBj: 'chk-dealerNoBj', playerLossStreak: 'chk-playerLossStreak', playerSinBj: 'chk-playerSinBj', pctTrend: 'chk-pctTrend', doubles: 'chk-doubles', splits: 'chk-splits', sound: 'chk-sound' };
+    const thIds: Record<string, string> = { noVolo: 'cfg-noVolo', sinBjDealer: 'cfg-sinBjDealer', lossStreak: 'cfg-lossStreak', playerSinBj: 'cfg-playerSinBj', pctTrendDelta: 'cfg-pctTrendDelta', windowSize: 'cfg-windowSize', doublesLossRate: 'cfg-doublesLossRate', splitsLossRate: 'cfg-splitsLossRate' };
+    Object.entries(ids).forEach(([k, id]) => { const el = byId(id); if (el) el.checked = (cfg.enabled as any)[k]; });
+    Object.entries(thIds).forEach(([k, id]) => { const el = byId(id); if (el) el.value = String((cfg.thresholds as any)[k]); });
+    Object.entries(ids).forEach(([k, id]) => { const el = byId(id); el?.addEventListener('change', () => { const next = loadAlertConfig(); (next.enabled as any)[k] = el!.checked; saveAlertConfig(next); recomputeStats(); }); });
+    Object.entries(thIds).forEach(([k, id]) => { const el = byId(id); el?.addEventListener('input', () => { const next = loadAlertConfig(); const v = parseFloat(el!.value); (next.thresholds as any)[k] = isNaN(v) ? (DEFAULT_ALERT_CONFIG.thresholds as any)[k] : v; saveAlertConfig(next); recomputeStats(); }); });
+  }
+  let lastAlertMessages = new Set<string>();
+  function playChime(){
+    try{
+      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const o = ctx.createOscillator(); const g = ctx.createGain();
+      o.type = 'sine'; o.frequency.setValueAtTime(880, ctx.currentTime);
+      g.gain.setValueAtTime(0.001, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.2, ctx.currentTime + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+      o.connect(g); g.connect(ctx.destination); o.start(); o.stop(ctx.currentTime + 0.4);
+    }catch{}
+  }
+
+  function computeAlerts(rows: {resultado:string, diler:string}[], cfg: AlertConfig): AlertItem[]{
+    const stats = collectStats();
+    const alerts: AlertItem[] = [];
+
+    // Regla 1: Diler NO VOLO (umbral ajustable)
+    if (cfg.enabled.dealerNoVolo && (stats.diler.rachas.noVolo || 0) >= cfg.thresholds.noVolo){
+      alerts.push({ severity: 'warning', message: `El diler no vuela hace ${stats.diler.rachas.noVolo} rondas. Posible vuelo próximo.` });
+    }
+
+    // Regla 2: Diler sin BJ (umbral ajustable)
+    if (cfg.enabled.dealerNoBj && (stats.diler.rachas.sinBj || 0) >= cfg.thresholds.sinBjDealer){
+      alerts.push({ severity: 'info', message: `Van ${stats.diler.rachas.sinBj} rondas sin BJ del diler.` });
+    }
+
+    // Regla 3: Jugador racha de PERDIDAS
+    if (cfg.enabled.playerLossStreak && (stats.jugador.rachas.perdidas || 0) >= cfg.thresholds.lossStreak){
+      alerts.push({ severity: 'danger', message: `Perdiste ${stats.jugador.rachas.perdidas} rondas consecutivas. Considera pausa si no mejora.` });
+    }
+
+    // Regla 4: Jugador sin BJ
+    if (cfg.enabled.playerSinBj && (stats.jugador.rachas.sinBJ || 0) >= cfg.thresholds.playerSinBj){
+      alerts.push({ severity: 'info', message: `Van ${stats.jugador.rachas.sinBJ} manos sin BJ del jugador.` });
+    }
+
+    // Regla 5: Tendencia de porcentajes en ventana vs global
+    if (cfg.enabled.pctTrend){
+      const N = Math.max(5, Math.floor(cfg.thresholds.windowSize));
+      const normR = (s:string)=> (s||'').trim().toUpperCase();
+      const win = (r: {resultado:string}) => ['GANE','GANE DOBLADA','DIVIDI GANE','BJ'].includes(normR(r.resultado));
+      const recent = rows.slice(-N);
+      const pct = (n:number,t:number)=> t>0? Math.round((n*1000)/t)/10:0;
+      const globalWinPct = pct(rows.filter(win).length, rows.length);
+      const recentWinPct = pct(recent.filter(win).length, recent.length);
+      const delta = Math.abs(recentWinPct - globalWinPct);
+      if (delta >= cfg.thresholds.pctTrendDelta){
+        alerts.push({ severity: recentWinPct < globalWinPct ? 'warning' : 'info', message: `Cambio de tendencia: Win% reciente ${recentWinPct}% vs global ${globalWinPct}%. Δ=${Math.round(delta)}%` });
+      }
+    }
+
+    // Regla 6: Dobles y Divisiones (ratio pérdidas en ventana)
+    const N2 = Math.max(5, Math.floor(cfg.thresholds.windowSize));
+    const recent2 = rows.slice(-N2);
+    const norm = (s: string) => (s||'').trim().toUpperCase();
+    if (cfg.enabled.doubles){
+      const dbl = recent2.filter(r => norm(r.resultado).includes('DOBLADA'));
+      const dblLoss = dbl.filter(r => norm(r.resultado).includes('PERDI DOBLADA'));
+      const rate = dbl.length ? Math.round((dblLoss.length*1000)/dbl.length)/10 : 0;
+      if (dbl.length >= 3 && rate >= cfg.thresholds.doublesLossRate*100){
+        alerts.push({ severity: 'warning', message: `Alta pérdida en dobles: ${rate}% de las últimas ${dbl.length} dobles.` });
+      }
+    }
+    if (cfg.enabled.splits){
+      const spl = recent2.filter(r => norm(r.resultado).includes('DIVIDI'));
+      const splLoss = spl.filter(r => norm(r.resultado).includes('DIVIDI PERDI'));
+      const rate = spl.length ? Math.round((splLoss.length*1000)/spl.length)/10 : 0;
+      if (spl.length >= 3 && rate >= cfg.thresholds.splitsLossRate*100){
+        alerts.push({ severity: 'warning', message: `Alta pérdida en divisiones: ${rate}% de las últimas ${spl.length} divisiones.` });
+      }
+    }
+
+    return alerts;
+  }
+
+  function updateAlertsUI(alerts: AlertItem[]){
+    const list = document.getElementById('alerts-list');
+    const empty = document.getElementById('alerts-empty');
+    const count = document.getElementById('alerts-count');
+    const cfg = getAlertConfig();
+    if (!list || !empty || !count) return;
+    count.textContent = String(alerts.length);
+    list.innerHTML = '';
+    if (alerts.length === 0){
+      empty.classList.remove('hidden');
+      return;
+    }
+    empty.classList.add('hidden');
+    const msgs = new Set(alerts.map(a=>a.message));
+    const hasNew = Array.from(msgs).some(m => !lastAlertMessages.has(m));
+    lastAlertMessages = msgs;
+    if (cfg.enabled.sound && hasNew && !isMuted()) playChime();
+    alerts.forEach(a => {
+      const li = document.createElement('li');
+      const color = a.severity === 'danger' ? 'bg-red-600/20 border-red-500/50 text-red-200' : a.severity === 'warning' ? 'bg-yellow-600/20 border-yellow-500/50 text-yellow-200' : 'bg-blue-600/20 border-blue-500/50 text-blue-200';
+      li.className = `px-3 py-2 rounded-md border ${color}`;
+      li.textContent = a.message;
+      list.appendChild(li);
+    });
+  }
+
+  // --- IA: recomendaciones ---
+  let aiDebounce: number | null = null;
+  async function updateAIRecommendations(alerts: AlertItem[], rows: {resultado:string, diler:string}[], cfg: AlertConfig){
+    const list = document.getElementById('ai-list');
+    const empty = document.getElementById('ai-empty');
+    if (!list || !empty) return;
+    const run = async () => {
+      const stats = collectStats();
+      const recos: string[] = [];
+      if ((stats.jugador.rachas.perdidas||0) >= cfg.thresholds.lossStreak) recos.push('Reduce tamaño de apuesta y considera pausa breve.');
+      if ((stats.diler.rachas.noVolo||0) >= cfg.thresholds.noVolo) recos.push('Probable vuelo del diler próximamente; ajusta tu toma de cartas con cautela.');
+      if ((stats.diler.rachas.sinBj||0) >= cfg.thresholds.sinBjDealer) recos.push('Sin BJ del diler en varias rondas; evita sobreexponerte esperando empates.');
+      const N = Math.max(5, Math.floor(cfg.thresholds.windowSize));
+      const recent = rows.slice(-N);
+      const norm = (s:string)=> (s||'').trim().toUpperCase();
+      const dbl = recent.filter(r => norm(r.resultado).includes('DOBLADA'));
+      const dblLoss = dbl.filter(r => norm(r.resultado).includes('PERDI DOBLADA'));
+      if (dbl.length>=3 && dblLoss.length/dbl.length >= cfg.thresholds.doublesLossRate){ recos.push('Evita doblar temporalmente: ratio de pérdidas en dobles alto.'); }
+      const spl = recent.filter(r => norm(r.resultado).includes('DIVIDI'));
+      const splLoss = spl.filter(r => norm(r.resultado).includes('DIVIDI PERDI'));
+      if (spl.length>=3 && splLoss.length/spl.length >= cfg.thresholds.splitsLossRate){ recos.push('Evita dividir temporalmente: ratio de pérdidas en divisiones alto.'); }
+      const win = (r:{resultado:string}) => ['GANE','GANE DOBLADA','DIVIDI GANE','BJ'].includes(norm(r.resultado));
+      const pct = (n:number,t:number)=> t>0? Math.round((n*1000)/t)/10:0;
+      const recentWinPct = pct(recent.filter(win).length, recent.length);
+      const globalWinPct = pct(rows.filter(win).length, rows.length);
+      const delta = Math.abs(recentWinPct - globalWinPct);
+      if (delta >= cfg.thresholds.pctTrendDelta){ recos.push(recentWinPct < globalWinPct ? 'La racha reciente es desfavorable; reduce exposición.' : 'Racha favorable reciente; mantén disciplina y evita sobreapuesta.'); }
+      try{
+        // @ts-ignore
+        const url = import.meta.env.PUBLIC_ALERTS_AI_URL;
+        if (url){
+          const resp = await fetch(url, { 
+            method:'POST', 
+            headers:{
+              'Content-Type':'application/json',
+              // Añade Authorization cuando el endpoint es Supabase Edge Function con verificación JWT
+              // @ts-ignore
+              ...(import.meta.env.PUBLIC_SUPABASE_ANON_KEY ? { Authorization: `Bearer ${import.meta.env.PUBLIC_SUPABASE_ANON_KEY}` } : {})
+            }, 
+            body: JSON.stringify({ stats, alerts, cfg }) 
+          });
+          if (resp.ok){ const data = await resp.json(); if (Array.isArray(data?.recommendations)) recos.push(...data.recommendations.slice(0,3)); }
+        }
+      }catch{}
+      list.innerHTML = '';
+      if (recos.length === 0){ empty.classList.remove('hidden'); return; }
+      empty.classList.add('hidden');
+      recos.forEach(r => { const li = document.createElement('li'); li.className = 'px-3 py-2 rounded-md border bg-purple-600/20 border-purple-500/50 text-purple-200'; li.textContent = r; list.appendChild(li); });
+    };
+    if (aiDebounce) window.clearTimeout(aiDebounce);
+    aiDebounce = window.setTimeout(run, 600);
+  }
+
+  // Versión pura para exportación: devuelve recomendaciones como array y opcionalmente consulta endpoint
+  async function buildAIRecommendationsForExport(alerts: AlertItem[], rows: {resultado:string, diler:string}[], cfg: AlertConfig): Promise<string[]>{
+    const stats = collectStats();
+    const recos: string[] = [];
+    if ((stats.jugador.rachas.perdidas||0) >= cfg.thresholds.lossStreak) recos.push('Reduce tamaño de apuesta y considera pausa breve.');
+    if ((stats.diler.rachas.noVolo||0) >= cfg.thresholds.noVolo) recos.push('Probable vuelo del diler próximamente; ajusta tu toma de cartas con cautela.');
+    if ((stats.diler.rachas.sinBj||0) >= cfg.thresholds.sinBjDealer) recos.push('Sin BJ del diler en varias rondas; evita sobreexponerte esperando empates.');
+    const N = Math.max(5, Math.floor(cfg.thresholds.windowSize));
+    const recent = rows.slice(-N);
+    const norm = (s:string)=> (s||'').trim().toUpperCase();
+    const dbl = recent.filter(r => norm(r.resultado).includes('DOBLADA'));
+    const dblLoss = dbl.filter(r => norm(r.resultado).includes('PERDI DOBLADA'));
+    if (dbl.length>=3 && dblLoss.length/dbl.length >= cfg.thresholds.doublesLossRate){ recos.push('Evita doblar temporalmente: ratio de pérdidas en dobles alto.'); }
+    const spl = recent.filter(r => norm(r.resultado).includes('DIVIDI'));
+    const splLoss = spl.filter(r => norm(r.resultado).includes('DIVIDI PERDI'));
+    if (spl.length>=3 && splLoss.length/spl.length >= cfg.thresholds.splitsLossRate){ recos.push('Evita dividir temporalmente: ratio de pérdidas en divisiones alto.'); }
+    const win = (r:{resultado:string}) => ['GANE','GANE DOBLADA','DIVIDI GANE','BJ'].includes(norm(r.resultado));
+    const pct = (n:number,t:number)=> t>0? Math.round((n*1000)/t)/10:0;
+    const recentWinPct = pct(recent.filter(win).length, recent.length);
+    const globalWinPct = pct(rows.filter(win).length, rows.length);
+    const delta = Math.abs(recentWinPct - globalWinPct);
+    if (delta >= cfg.thresholds.pctTrendDelta){ recos.push(recentWinPct < globalWinPct ? 'La racha reciente es desfavorable; reduce exposición.' : 'Racha favorable reciente; mantén disciplina y evita sobreapuesta.'); }
+    try{
+      // @ts-ignore
+      const url = import.meta.env.PUBLIC_ALERTS_AI_URL;
+      if (url){
+        const resp = await fetch(url, { 
+          method:'POST', 
+          headers:{
+            'Content-Type':'application/json',
+            // @ts-ignore
+            ...(import.meta.env.PUBLIC_SUPABASE_ANON_KEY ? { Authorization: `Bearer ${import.meta.env.PUBLIC_SUPABASE_ANON_KEY}` } : {})
+          }, 
+          body: JSON.stringify({ stats, alerts, cfg }) 
+        });
+        if (resp.ok){ const data = await resp.json(); if (Array.isArray(data?.recommendations)) recos.push(...data.recommendations.slice(0,5)); }
+      }
+    }catch{}
+    return recos;
+  }
+
+  // Inicializar configuración de alertas al cargar
+  bindAlertConfigUI();
+
+  // --- Silencio temporal de alertas ---
+  function getMuteUntil(): number{
+    const v = localStorage.getItem('alertsMuteUntil');
+    const t = v ? Number(v) : 0;
+    return isNaN(t) ? 0 : t;
+  }
+  function isMuted(): boolean{
+    const t = getMuteUntil();
+    const now = Date.now();
+    const el = document.getElementById('mute-until');
+    if (t && t > now){
+      const d = new Date(t);
+      if (el) el.textContent = `Silenciado hasta ${d.toLocaleTimeString('es-ES', {hour:'2-digit', minute:'2-digit'})}`;
+      return true;
+    }
+    if (el) el.textContent = '';
+    return false;
+  }
+  function setMuteForMinutes(mins: number){
+    const until = Date.now() + Math.max(1, mins) * 60 * 1000;
+    localStorage.setItem('alertsMuteUntil', String(until));
+    isMuted();
+  }
+  document.getElementById('btn-mute')?.addEventListener('click', () => {
+    const sel = document.getElementById('sel-mute-mins') as HTMLSelectElement | null;
+    const mins = sel ? Number(sel.value) : 10;
+    setMuteForMinutes(mins);
+  });
+  // Actualizar indicador de silencio cada minuto
+  setInterval(isMuted, 30 * 1000);
 
   // Guardar en Supabase
   async function saveSnapshot(){
@@ -1189,6 +1511,23 @@ import Layout from "../layouts/Layout.astro";
         });
         // No modificar ws['!ref'] para no romper referencias/formulas de la plantilla
       }
+
+      // Adjuntar hojas con Alertas y Recomendaciones
+      try{
+        const cfg: AlertConfig = (snap?.alertConfig) || getAlertConfig();
+        const alerts: AlertItem[] = computeAlerts(rowsAll as any, cfg);
+        const recs: string[] = await buildAIRecommendationsForExport(alerts, rowsAll as any, cfg);
+
+        const alertsSheetData: any[] = [['MENSAJE','SEVERIDAD']];
+        alerts.forEach(a => alertsSheetData.push([a.message, a.severity]));
+        const wsAlerts = XLSXMod.utils.aoa_to_sheet(alertsSheetData);
+        XLSXMod.utils.book_append_sheet(wb, wsAlerts, 'ALERTAS');
+
+        const recsSheetData: any[] = [['RECOMENDACIONES']];
+        recs.forEach(r => recsSheetData.push([r]));
+        const wsRecs = XLSXMod.utils.aoa_to_sheet(recsSheetData);
+        XLSXMod.utils.book_append_sheet(wb, wsRecs, 'RECOMENDACIONES');
+      }catch(e){ console.warn('Adjuntar Alertas/Recomendaciones falló:', e); }
 
       const fname = `${(snap?.snapshot_name || 'snapshot')}.xlsm`;
       XLSXMod.writeFile(wb, fname, { bookType: 'xlsm' });
