@@ -154,6 +154,12 @@ import Layout from "../layouts/Layout.astro";
               <strong>💡 Consejo:</strong> Hable claramente y espere un segundo entre comandos. El sistema tiene un pequeño retardo para evitar errores.
             </p>
           </div>
+          
+          <div id="mobileVoiceWarning" class="bg-blue-900 border border-blue-600 rounded p-3 mt-4 hidden">
+            <p class="text-blue-200 text-sm">
+              <strong>📱 Modo Móvil:</strong> En dispositivos móviles, el reconocimiento puede detenerse automáticamente después de cada comando. Esto es normal - simplemente vuelva a activarlo si es necesario.
+            </p>
+          </div>
         </div>
         
         <div class="mt-6 text-center">
@@ -166,7 +172,7 @@ import Layout from "../layouts/Layout.astro";
   </main>
 </Layout>
 
-<!-- Voice Configuration -->
+<!-- Voice Configuration - Optimizada para dictado ultra-rápido -->
 <script id="voice-config" type="application/json">
 {
   "shortTokens": {
@@ -174,10 +180,10 @@ import Layout from "../layouts/Layout.astro";
     "letters": ["j","q","k","a"]
   },
   "thresholds": {
-    "number": 0.2,
-    "letter": 0.2
+    "number": 0.08,
+    "letter": 0.08
   },
-  "cooldownMs": 100
+  "cooldownMs": 50
 }
 </script>
 
@@ -229,17 +235,79 @@ import Layout from "../layouts/Layout.astro";
   // VoiceCommands Class Integration
   class VoiceCommands {
     constructor() {
+      /** @type {boolean} */
       this.isListening = false;
+      /** @type {boolean} */
       this.shouldReconnect = false;
+      /** @type {any} */
       this.recognition = null;
+      /** @type {number} */
       this.actionCooldownMs = 100;
+      /** @type {number} */
       this.lastActionTime = 0;
+      /** @type {{
+        lowCardBtn: HTMLElement|null,
+        neutralCardBtn: HTMLElement|null,
+        highCardBtn: HTMLElement|null,
+        resetBtn: HTMLElement|null,
+        voiceBtn: HTMLElement|null,
+        voiceIcon: HTMLElement|null
+      }} */
       this.domElements = this.cacheDOMElements();
+      /** @type {boolean} */
+      this.isMobile = this.detectMobile();
+      /** @type {ReturnType<typeof setTimeout>|null} */
+      this.reconnectTimeout = null;
+      /** @type {boolean} */
+      this.isUserRequestedStop = false;
+      /** @type {Set<string>} */
+      this.processedCommands = new Set();
+      /** @type {Array<{command: string, timestamp: number}>} */
+      this.commandHistory = [];
+
+      // Precargar mapas para máxima velocidad
+      /** @type {Record<string,string>} */
+      this.numberMap = {
+        'uno': '1', 'un': '1', 'una': '1', 'wan': '1',
+        'dos': '2', 'tu': '2', 'too': '2', 
+        'tres': '3', 'tre': '3',
+        'cuatro': '4', 'cua': '4',
+        'cinco': '5', 'sin': '5',
+        'seis': '6', 'sais': '6',
+        'siete': '7', 'sie': '7', 'set': '7',
+        'ocho': '8', 'ochoa': '8',
+        'nueve': '9', 'nue': '9',
+        'diez': '10', 'die': '10'
+      };
+
+      /** @type {Record<string,string>} */
+      this.letterMap = {
+        'j': 'j', 'jota': 'j', 'jack': 'j', 'sota': 'j',
+        'q': 'q', 'reina': 'q', 'queen': 'q',
+        'k': 'k', 'rey': 'k', 'king': 'k',
+        'a': 'a', 'as': 'a', 'ace': 'a', 'has': 'a', 'az': 'a', 'ha': 'a'
+      };
 
       this.initializeRecognition();
       this.readConfigFromDom();
+      
+      console.log('Configuración de VoiceCommands optimizada para dictado ultra-rápido');
     }
 
+    detectMobile() {
+      return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    }
+
+    /**
+     * @returns {{
+     *  lowCardBtn: HTMLElement|null,
+     *  neutralCardBtn: HTMLElement|null,
+     *  highCardBtn: HTMLElement|null,
+     *  resetBtn: HTMLElement|null,
+     *  voiceBtn: HTMLElement|null,
+     *  voiceIcon: HTMLElement|null
+     * }}
+     */
     cacheDOMElements() {
       return {
         lowCardBtn: document.getElementById('card-low'),
@@ -261,15 +329,19 @@ import Layout from "../layouts/Layout.astro";
 
         const config = JSON.parse(configElement.textContent);
         
-        this.actionCooldownMs = config.cooldownMs || 100;
+        // Configuración optimizada para dictado rápido
+        this.actionCooldownMs = this.isMobile ? 80 : 40; // Muy rápido para dictado
         this.allowedSinglesNumbers = new Set(config.shortTokens?.numbers || []);
         this.allowedSinglesLetters = new Set(config.shortTokens?.letters || []);
+        
+        // Umbrales de confianza más permisivos para dictado rápido
         this.thresholds = {
-          number: 0.2,
-          letter: 0.2
+          number: this.isMobile ? 0.1 : 0.15, // Muy permisivo
+          letter: this.isMobile ? 0.1 : 0.15
         };
 
-        console.log('Configuración de voz cargada:', {
+        console.log('Configuración de voz optimizada para dictado rápido:', {
+          isMobile: this.isMobile,
           cooldownMs: this.actionCooldownMs,
           allowedNumbers: [...this.allowedSinglesNumbers],
           allowedLetters: [...this.allowedSinglesLetters],
@@ -281,46 +353,42 @@ import Layout from "../layouts/Layout.astro";
     }
 
     /**
-     * Normaliza el token reconocible:
-     * - Convierte números hablados ("dos", "siete", "diez") a dígitos
-     * - Limpia espacios/puntuación
-     * - Mantiene dígitos tal cual
+     * Normaliza el token reconocible - Ultra-rápido con mapas precargados
      * @param {string} token
      * @returns {string}
      */
     normalizeToken(token) {
-      const t = (token || '').toLowerCase().trim().replace(/[.,;:!?]/g, '');
-
-      // Mapa de números en español a dígitos (Map para evitar diagnósticos TS)
-      const numberMap = new Map([
-        ['uno', '1'], ['un', '1'], ['una', '1'],
-        ['dos', '2'], ['tres', '3'], ['cuatro', '4'], ['cinco', '5'],
-        ['seis', '6'], ['siete', '7'], ['ocho', '8'], ['nueve', '9'], ['diez', '10']
-      ]);
-
-      if (numberMap.has(t)) {
-        const mapped = numberMap.get(t);
-        if (typeof mapped === 'string') return mapped;
+      if (!token || typeof token !== 'string') return '';
+      
+      const t = token.toLowerCase().trim().replace(/[.,;:!?¿¡]/g, '');
+      
+      // Verificación ultra-rápida de comandos cortos
+      if (t.length === 1) {
+        if (t >= '2' && t <= '9') return t;
+        if (t === '1' || t === 'j' || t === 'q' || t === 'k' || t === 'a') return t;
+        if (t === '0') return '10'; // Caso especial
       }
-
-      // Sinónimos de figuras a letras
-      const letterMap = new Map([
-        ['j', 'j'], ['jota', 'j'], ['jack', 'j'], ['sota', 'j'],
-        ['q', 'q'], ['reina', 'q'], ['queen', 'q'],
-        ['k', 'k'], ['rey', 'k'], ['king', 'k'],
-        ['a', 'a'], ['as', 'a'], ['ace', 'a'], ['has', 'a']
-      ]);
-
-      if (letterMap.has(t)) {
-        const mapped = letterMap.get(t);
-        if (typeof mapped === 'string') return mapped;
+      
+      // Verificación de comandos de 2 caracteres
+      if (t.length === 2) {
+        if (t === '10') return '10';
+        if (t === 'ha') return 'a';
+        if (t === 'as') return 'a';
+        if (t === 'az') return 'a';
       }
-
-      // Si viene como "número X" o con espacios, intenta extraer dígito
+      
+      // Usar mapas precargados (más rápido que crear nuevos)
+      if (this.numberMap[t]) {
+        return this.numberMap[t];
+      }
+      
+      if (this.letterMap[t]) {
+        return this.letterMap[t];
+      }
+      
+      // Si viene como número con espacios
       const match = t.match(/\b(\d{1,2})\b/);
-      if (match) return match[1];
-
-      return t;
+      return match ? match[1] : t;
     }
 
     initializeRecognition() {
@@ -333,10 +401,28 @@ import Layout from "../layouts/Layout.astro";
       }
 
       this.recognition = new SR();
-      this.recognition.continuous = true;
-      this.recognition.interimResults = true;
-      this.recognition.maxAlternatives = 3;
+      
+      // Configuración optimizada para ambas plataformas
+      if (this.isMobile) {
+        // En móviles: configuración más conservadora
+        this.recognition.continuous = false;
+        this.recognition.maxAlternatives = 1;
+        this.recognition.interimResults = false; // Solo resultados finales
+      } else {
+        // En PC: configuración más sensible
+        this.recognition.continuous = true;
+        this.recognition.maxAlternatives = 3;
+        this.recognition.interimResults = true;
+      }
+      
+      // Configuración común
       this.recognition.lang = 'es-ES';
+      
+      // Ajustes adicionales para mejor precisión
+      if ('webkitSpeechRecognition' in window) {
+        // @ts-ignore
+        this.recognition.webkitSpeechRecognitionEndSilenceTimeout = 2000;
+      }
 
       this.recognition.onstart = () => {
         console.log('Reconocimiento de voz iniciado');
@@ -345,17 +431,24 @@ import Layout from "../layouts/Layout.astro";
       };
 
       this.recognition.onend = () => {
-        console.log('Reconocimiento de voz finalizado');
         this.isListening = false;
         this.updateVoiceButton();
 
-        if (this.shouldReconnect) {
-          console.log('Reconectando...');
-          setTimeout(() => {
-            if (this.shouldReconnect) {
+        // Reconexión ultra-rápida para dictado continuo
+        if (this.shouldReconnect && !this.isUserRequestedStop) {
+          // Limpiar timeout previo
+          if (this.reconnectTimeout) {
+            clearTimeout(this.reconnectTimeout);
+          }
+          
+          // Reconexión inmediata para dictado rápido
+          const reconnectDelay = this.isMobile ? 300 : 100;
+          
+          this.reconnectTimeout = setTimeout(() => {
+            if (this.shouldReconnect && !this.isUserRequestedStop) {
               this.startListening();
             }
-          }, 1000);
+          }, reconnectDelay);
         }
       };
 
@@ -372,38 +465,36 @@ import Layout from "../layouts/Layout.astro";
 
       /** @param {any} event */
       this.recognition.onresult = (event) => {
+        // Procesamiento optimizado para velocidad
         for (let i = event.resultIndex; i < event.results.length; i++) {
           const result = event.results[i];
           
-          for (let j = 0; j < result.length; j++) {
-            const raw = result[j].transcript.toLowerCase().trim();
-            const confidence = result[j].confidence;
-
-            // Construye candidatos desde la frase completa y cada palabra
-            const words = raw.split(/\s+/).filter(Boolean);
-            const candidates = [];
-            const phraseNorm = this.normalizeToken(raw);
-            if (phraseNorm) candidates.push(phraseNorm);
-            for (const w of words) {
-              const nt = this.normalizeToken(w);
-              if (nt) candidates.push(nt);
-            }
-
-            console.log(`Alternativa ${j + 1} cruda: "${raw}" (Confianza: ${confidence})`);
-            console.log('Candidatos normalizados:', candidates);
-
-            for (const transcript of candidates) {
-              if (this.isOnCooldown()) {
-                console.log('En cooldown, ignorando comando');
-                continue;
-              }
-
-              if (transcript === 'reiniciar' || transcript === 'reset') {
-                this.processCommand('reset');
-                break;
-              } else {
-                const wasProcessed = this.processQuickCommand(transcript, confidence);
-                if (wasProcessed) break;
+          // En móviles, solo procesar resultados finales
+          if (this.isMobile && !result.isFinal) {
+            continue;
+          }
+          
+          // Procesar solo la mejor alternativa para velocidad
+          if (result.length > 0) {
+            const bestResult = result[0];
+            const raw = bestResult.transcript.toLowerCase().trim();
+            const confidence = bestResult.confidence;
+            
+            // Procesar directamente sin crear arrays intermedios
+            if (confidence > 0.05) { // Umbral mínimo
+              const words = raw.split(/\s+/);
+              
+              // Procesar cada palabra rápidamente
+              for (const word of words) {
+                const normalized = this.normalizeToken(word);
+                if (normalized && !this.isOnCooldown()) {
+                  if (normalized === 'reiniciar' || normalized === 'reset') {
+                    this.processCommand('reset');
+                    break;
+                  } else {
+                    this.processQuickCommand(normalized, confidence);
+                  }
+                }
               }
             }
           }
@@ -412,15 +503,24 @@ import Layout from "../layouts/Layout.astro";
     }
 
     /**
+     * Procesamiento ultra-rápido de comandos de voz
      * @param {string} transcript
      * @param {number} confidence
      */
     processQuickCommand(transcript, confidence) {
-      const token = transcript.trim().toLowerCase();
+      // Verificaciones ultra-rápidas
+      if (confidence < 0.05) return false; // Mínimo umbral
       
-      const isDigitToken = /^\d{1,2}$/.test(token);
-      if ((this.allowedSinglesNumbers && this.allowedSinglesNumbers.has(token)) || isDigitToken) {
-        const num = parseInt(token);
+      const token = transcript;
+      
+      // Verificar duplicados y cooldown (rápido)
+      if (this.isCommandProcessed(token) || this.isOnCooldown()) {
+        return false;
+      }
+      
+      // Procesamiento directo sin validaciones complejas
+      const num = parseInt(token);
+      if (!isNaN(num)) {
         if (num >= 2 && num <= 6) {
           this.domElements.lowCardBtn?.click();
           this.updateLastActionTime();
@@ -436,7 +536,8 @@ import Layout from "../layouts/Layout.astro";
         }
       }
       
-      if (this.allowedSinglesLetters && this.allowedSinglesLetters.has(token)) {
+      // Letras - verificación directa
+      if (token === 'j' || token === 'q' || token === 'k' || token === 'a') {
         this.domElements.highCardBtn?.click();
         this.updateLastActionTime();
         return true;
@@ -449,7 +550,13 @@ import Layout from "../layouts/Layout.astro";
     processCommand(command) {
       command = command.toLowerCase().trim();
       
+      // Verificar duplicados y cooldown
+      if (this.isCommandProcessed(command) || this.isOnCooldown()) {
+        return;
+      }
+      
       if (command === 'reset' || command === 'reiniciar') {
+        console.log(`✅ Comando de reset detectado: ${command}`);
         this.domElements.resetBtn?.click();
         this.updateLastActionTime();
       }
@@ -461,6 +568,41 @@ import Layout from "../layouts/Layout.astro";
 
     updateLastActionTime() {
       this.lastActionTime = Date.now();
+      // Limpiar comandos procesados después de un tiempo
+      setTimeout(() => {
+        this.processedCommands.clear();
+      }, this.actionCooldownMs * 2);
+    }
+    
+    /**
+     * Verifica si un comando ya fue procesado recientemente - Optimizado para velocidad
+     * @param {string} command 
+     * @returns {boolean}
+     */
+    isCommandProcessed(command) {
+      const now = Date.now();
+      const key = `${command}_${Math.floor(now / 500)}`; // Ventana de 500ms para dictado rápido
+      
+      if (this.processedCommands.has(key)) {
+        return true;
+      }
+      
+      this.processedCommands.add(key);
+      
+      // Limpiar comandos antiguos de forma más eficiente
+      if (this.processedCommands.size > 20) {
+        const keysToDelete = [];
+        const currentWindow = Math.floor(now / 500);
+        for (const k of this.processedCommands) {
+          const keyWindow = parseInt(k.split('_')[1]);
+          if (currentWindow - keyWindow > 2) { // Más de 1 segundo
+            keysToDelete.push(k);
+          }
+        }
+        keysToDelete.forEach(k => this.processedCommands.delete(k));
+      }
+      
+      return false;
     }
 
     startListening() {
@@ -470,7 +612,15 @@ import Layout from "../layouts/Layout.astro";
       }
 
       try {
+        this.isUserRequestedStop = false;
         this.shouldReconnect = true;
+        
+        // Limpiar timeout previo si existe
+        if (this.reconnectTimeout) {
+          clearTimeout(this.reconnectTimeout);
+          this.reconnectTimeout = null;
+        }
+        
         this.recognition.start();
         console.log('Iniciando reconocimiento de voz...');
       } catch (error) {
@@ -484,7 +634,15 @@ import Layout from "../layouts/Layout.astro";
     stopListening() {
       if (!this.recognition) return;
       
+      this.isUserRequestedStop = true;
       this.shouldReconnect = false;
+      
+      // Limpiar timeout de reconexión si existe
+      if (this.reconnectTimeout) {
+        clearTimeout(this.reconnectTimeout);
+        this.reconnectTimeout = null;
+      }
+      
       try {
         this.recognition.stop();
         console.log('Deteniendo reconocimiento de voz...');
@@ -506,10 +664,12 @@ import Layout from "../layouts/Layout.astro";
 
       if (this.isListening) {
         this.domElements.voiceBtn.style.backgroundColor = '#059669';
-        this.domElements.voiceBtn.innerHTML = '<span id="voiceIcon">🎤</span><span>Desactivar Control por Voz</span>';
+        const statusText = this.isMobile ? 'Desactivar Voz (Móvil)' : 'Desactivar Control por Voz';
+        this.domElements.voiceBtn.innerHTML = `<span id="voiceIcon">🎤</span><span>${statusText}</span>`;
       } else {
         this.domElements.voiceBtn.style.backgroundColor = '#16a34a';
-        this.domElements.voiceBtn.innerHTML = '<span id="voiceIcon">🎤</span><span>Activar Control por Voz</span>';
+        const statusText = this.isMobile ? 'Activar Voz (Móvil)' : 'Activar Control por Voz';
+        this.domElements.voiceBtn.innerHTML = `<span id="voiceIcon">🎤</span><span>${statusText}</span>`;
       }
     }
   }
@@ -691,6 +851,12 @@ import Layout from "../layouts/Layout.astro";
       voiceHelpBtn.addEventListener('click', function() {
         modal.classList.remove('hidden');
         modal.classList.add('flex');
+        
+        // Mostrar advertencia móvil si estamos en un dispositivo móvil
+        const mobileWarning = document.getElementById('mobileVoiceWarning');
+        if (mobileWarning && voiceCommands && voiceCommands.isMobile) {
+          mobileWarning.classList.remove('hidden');
+        }
       });
     }
     
