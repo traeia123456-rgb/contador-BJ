@@ -264,6 +264,12 @@ import Layout from "../layouts/Layout.astro";
       this.processedCommands = new Set();
       /** @type {Array<{command: string, timestamp: number}>} */
       this.commandHistory = [];
+      /** @type {string} */
+      this.lastProcessedCommand = '';
+      /** @type {number} */
+      this.lastProcessedTime = 0;
+      /** @type {number} */
+      this.consecutiveSuppressionWindowMs = 1200;
 
       // Precargar mapas para máxima velocidad
       /** @type {Record<string,string>} */
@@ -514,7 +520,7 @@ import Layout from "../layouts/Layout.astro";
       const token = transcript;
       
       // Verificar duplicados y cooldown (rápido)
-      if (this.isCommandProcessed(token) || this.isOnCooldown()) {
+      if (this.isConsecutiveDuplicate(token) || this.isCommandProcessed(token) || this.isOnCooldown()) {
         return false;
       }
       
@@ -523,14 +529,17 @@ import Layout from "../layouts/Layout.astro";
       if (!isNaN(num)) {
         if (num >= 2 && num <= 6) {
           this.domElements.lowCardBtn?.click();
+          this.setLastProcessed(token);
           this.updateLastActionTime();
           return true;
         } else if (num >= 7 && num <= 9) {
           this.domElements.neutralCardBtn?.click();
+          this.setLastProcessed(token);
           this.updateLastActionTime();
           return true;
         } else if (num === 10) {
           this.domElements.highCardBtn?.click();
+          this.setLastProcessed(token);
           this.updateLastActionTime();
           return true;
         }
@@ -539,6 +548,7 @@ import Layout from "../layouts/Layout.astro";
       // Letras - verificación directa
       if (token === 'j' || token === 'q' || token === 'k' || token === 'a') {
         this.domElements.highCardBtn?.click();
+        this.setLastProcessed(token);
         this.updateLastActionTime();
         return true;
       }
@@ -551,13 +561,14 @@ import Layout from "../layouts/Layout.astro";
       command = command.toLowerCase().trim();
       
       // Verificar duplicados y cooldown
-      if (this.isCommandProcessed(command) || this.isOnCooldown()) {
+      if (this.isConsecutiveDuplicate(command) || this.isCommandProcessed(command) || this.isOnCooldown()) {
         return;
       }
       
       if (command === 'reset' || command === 'reiniciar') {
         console.log(`✅ Comando de reset detectado: ${command}`);
         this.domElements.resetBtn?.click();
+        this.setLastProcessed(command);
         this.updateLastActionTime();
       }
     }
@@ -603,6 +614,17 @@ import Layout from "../layouts/Layout.astro";
       }
       
       return false;
+    }
+
+    /** @param {string} command */
+    isConsecutiveDuplicate(command) {
+      return command === this.lastProcessedCommand && (Date.now() - this.lastProcessedTime) < this.consecutiveSuppressionWindowMs;
+    }
+
+    /** @param {string} command */
+    setLastProcessed(command) {
+      this.lastProcessedCommand = command;
+      this.lastProcessedTime = Date.now();
     }
 
     startListening() {
